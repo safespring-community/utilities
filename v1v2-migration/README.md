@@ -1,13 +1,13 @@
 # utilities
 Utilities for inteacting with Safesprings platform
 
-# migrate-boot-volume.sh
+# migrate-boot-vol.sh
 Prerequisites: Openstack Python CLI client, qemu-utils
 
 First one needs to take a snapshot in the source platform of the instance that should be migrated.
 
 The script is run with two environment files as arguments:
-migate-boot-volume.sh [source-env] [destination-env]
+migate-boot-vol.sh [source-env] [destination-env]
 
 The script will list all the avaiable images and snashots in the source platform. The user then provides then name of the snashot that should be migrated.
 
