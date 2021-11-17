@@ -1,7 +1,7 @@
 # utilities
-Scripts for migrating from v1 to v2
+Utilities for inteacting with Safesprings platform
 
-# migrate.sh
+# migrate_boot_volume_v1v2.sh
 First one needs to take a snapshot in the source platform of the instance that should be migrated.
 
 The script is run with two environment files as arguments:
