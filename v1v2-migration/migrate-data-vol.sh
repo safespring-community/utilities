@@ -5,6 +5,9 @@ if [ $# -ne 2 ]
     exit 1
 fi
 
+echo "This script ihas not been tested, use it as reference and do not run i directly. Exiting."
+exit 1
+
 # Cleaning up OS-variables before reading source platform variables
 for x in `env|grep OS|cut -d= -f 1`; do unset $x; done
 # Read source platform variables
@@ -26,9 +29,8 @@ openstack volume create --snapshot $volsnapname --size $SNAP_SIZE $volsnapname.m
 echo" Creating image from migration volume $volsnapname.mig"
 openstack image create --volume  $volsnapname.mig $volsnapname.img
 
-# TODO: Wait for operation to complete
+# TODO: Wait for operation to complete, by checing  state of "openstack image list" is not "SAVING" anymore
 #       Remove the migration volume
-wait
 
 
 echo" Downloading image $volsnapname.img" 
