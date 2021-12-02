@@ -1,0 +1,63 @@
+---
+- name: setup okd4 cluster
+  hosts: localhost
+
+  vars:
+    installer_dir: installer
+
+  pre_tasks:
+    - include_vars: settings.yml
+
+
+  tasks:
+    - name: Terraform template full cluster
+      template:
+        src: "cluster.tf.j2"
+        dest: "cluster.tf"
+      vars:
+        okd_boot: 0
+        network_name: public
+        ignition_url: "dummy" # Part of template but unused since okd_boot=0
+        ssh_cidrs: []
+        all_ports_cidrs: []
+        api_cidrs: []
+
+    - block:
+        - name: "terraform apply Full cluster"
+          command: "terraform apply -auto-approve "
+          register: _terraform_apply
+      always:
+        - debug:
+            msg: "{{ _terraform_apply[item].split('\n') }}"
+          with_items: [stdout, stderr]
+          when: item in _terraform_apply
+
+    - name: Wait for API to be available
+      wait_for:
+        port: 6443
+        host: "api.{{okd_cluster_name}}.{{okd_base_domain}}"
+
+#    - name: "verify that all the csr are loaded and aproved for the deployed nodes"
+#      shell: |
+#        set -eo pipefail
+#        until \
+#          [ $(oc get nodes -o json | jq '[.items[].metadata.labels | select(."node-role.kubernetes.io/master" == "")] | length') -eq {{ okd_masters |default(3) }} ] && \
+#          [ $(oc get nodes -o json | jq '[.items[].metadata.labels | select(."node-role.kubernetes.io/worker" == "")] | length') -eq {{ okd_workers |default(3) }} ]
+#        do
+#          oc get csr -o json | jq -r '.items[] | select(.status == {} ) | .metadata.name' | xargs oc adm certificate approve
+#        done
+#      environment:
+#        KUBECONFIG: "{{ installer_dir }}/auth/kubeconfig"
+#      register: _oc_csr
+#      args:
+#        executable: /bin/bash
+#
+#    - debug:
+#        var: _oc_csr
+
+    - name: openshift-install wait-for install-complete
+      command: openshift-install --dir={{ installer_dir }}/ wait-for install-complete
+      register: _wait_for_install
+    - debug:
+        var: _wait_for_install
+## dummy

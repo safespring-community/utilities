@@ -1,0 +1,77 @@
+---
+- name: setup local user environment
+  hosts: localhost
+
+  vars:
+    install_aws_cli: true
+    terraform_version: 0.13.6
+    kustomize_version: 3.8.5
+    sopssecretgenerator_version: 1.3.2
+    helm_version: 3.4.2
+    consul_version: 1.8.4
+    cluster_type: "{{ ansible_env.PWD | regex_replace(\".*cluster-instances/(\\w+)/.*\", \"\\1\") }}"
+
+  tasks:
+    - name: get latest official openshift-client
+      unarchive:
+        src: https://mirror.openshift.com/pub/openshift-v4/clients/oc/latest/linux/oc.tar.gz
+        remote_src: true
+        dest: "{{ ansible_env.HOME }}/.local/bin"
+        creates: "{{ ansible_env.HOME }}/.local/bin/oc"
+
+    - name: save bash-completion script for openshift-client
+      copy:
+        content: "{{ lookup('pipe', 'oc completion bash') }}"
+        dest: "{{ ansible_env.HOME }}/.local/share/bash-completion/completions/oc"
+
+    - name: Install openstack libs and tools
+      pip:
+        extra_args: "--user"
+        name:
+          - python-openstackclient
+          - boto3
+          - os-client-config
+
+    - name: save bash-completion script for openstack-client
+      copy:
+        content: "{{ lookup('pipe', 'openstack complete') }}"
+        dest: "{{ ansible_env.HOME }}/.local/share/bash-completion/completions/openstack"
+
+    - block:
+      - name: get aws-cli
+        unarchive:
+          src: https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+          remote_src: true
+          dest: "{{ ansible_env.HOME }}"
+        register: _aws_download
+
+      - name: install aws for local user
+        command: >-
+          {{ ansible_env.HOME }}/aws/install
+          -i {{ ansible_env.HOME }}/.local/aws-cli
+          -b {{ ansible_env.HOME }}/.local/bin
+        args:
+          creates: "{{ ansible_env.HOME }}/.local/bin/aws"
+        register: _aws_install
+
+      - name: update aws for local user
+        command: >-
+          {{ ansible_env.HOME }}/aws/install --update
+          -i {{ ansible_env.HOME }}/.local/aws-cli
+          -b {{ ansible_env.HOME }}/.local/bin
+        when:
+          - _aws_download is changed
+          - _aws_install is not changed
+      when: install_aws_cli == true
+
+    - name: Show checklist
+      debug:
+        msg: "{{ message.split('\n') }}"
+      vars:
+        message: |
+          Hey! Things you could do next;
+            * Copy the settings-template and change according to your needs
+
+          Then continue here;
+            * ansible-playbook image-installer.yml
+            * ansible-playbook cluster.yml

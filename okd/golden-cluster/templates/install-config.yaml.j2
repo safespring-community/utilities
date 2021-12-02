@@ -1,0 +1,37 @@
+---
+apiVersion: v1
+baseDomain: {{ okd_base_domain }}
+imageContentSources:
+- mirrors:
+  - harbor.uio.no/okd4/releases
+  source: quay.io/openshift/okd
+- mirrors:
+  - harbor.uio.no/okd4/releases
+  source: quay.io/openshift/okd-content
+compute:
+- name: worker
+  replicas: 2
+controlPlane:
+  name: master
+  replicas: 3
+metadata:
+  #The cluster name that you specified in your DNS records
+  name: {{ okd_cluster_name }}
+networking:
+  clusterNetwork:
+  - cidr: 10.128.0.0/14
+    hostPrefix: 23
+  networkType: OpenShiftSDN
+  serviceNetwork:
+  - 172.30.0.0/16
+platform:
+  none: {}
+#proxy:
+#  httpProxy: http://<username>:<pswd>@<ip>:<port>
+#  httpsProxy: http://<username>:<pswd>@<ip>:<port>
+#  noProxy: example.com
+## The pull secret that provides components in the cluster access to images for OpenShift components.
+# a fake value to satisfy the installer. Images for okd need no subscription
+pullSecret: '{"auths":{"fake":{"auth": "bar"}}}'
+## The default SSH key that will be programmed for `core` user.
+sshKey: "{{ ssh_key }}"

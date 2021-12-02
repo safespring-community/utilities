@@ -1,0 +1,169 @@
+---
+- name: setup okd4 cluster
+  hosts: localhost
+
+  vars:
+    installer_dir: installer
+
+  pre_tasks:
+    - include_vars: settings.yml
+
+    - name: check for cluster progress
+      stat:
+        path: "{{ item }}"
+      with_items:
+        - "{{ installer_dir }}/install-config.yaml"
+        - "{{ installer_dir }}/manifests/cluster-scheduler-02-config.yml"
+        - "{{ installer_dir }}/bootstrap.ign"
+        - "{{ installer_dir }}/master.ign"
+        - "{{ installer_dir }}/worker.ign"
+      register: _cluster_progress
+
+    - name: check for api
+      uri:
+        url: "https://api.{{ okd_cluster_name }}.{{ okd_base_domain }}:6443/version?timeout=32s"
+        validate_certs: false
+        return_content: true
+      failed_when: false
+      register: _cluster_api
+
+    - set_fact:
+        bootstrap_complete: "{{ (_cluster_api.status == 200) | ternary(true, false) }}"
+
+    - name: create directory for installer
+      file:
+        path: "{{ ansible_env.PWD }}/{{ installer_dir }}"
+        state: directory
+
+  tasks:
+    - name: create install-config.yaml
+      template:
+        src: install-config.yaml.j2
+        dest: "{{ ansible_env.PWD }}/{{ installer_dir }}/install-config.yaml"
+      register: install_config_yaml
+      when:
+        - _cluster_progress.results | json_query(cluster_scheduler_config_exists) == false
+        - _cluster_progress.results | json_query(ignitions_exist) is not all
+      vars:
+        ssh_key: "{{ lookup('file', ssh_key_path) }}"
+        folder_name: "{{ okd_cluster_name }}"
+        cluster_scheduler_config_exists: "[?item==`{{ installer_dir }}/manifests/cluster-scheduler-02-config.yml`].stat.exists | [0]"
+        ignitions_exist: "[?item==`{{ installer_dir }}/bootstrap.ign` || item==`{{ installer_dir }}/master.ign` || item==`{{ installer_dir }}/worker.ign`].stat.exists"
+
+    - block:
+        - name: openshift-install create manifests
+          command: openshift-install --dir={{ installer_dir }}/ create manifests
+          args:
+            creates: "{{ ansible_env.PWD }}/{{ installer_dir }}/manifests/cluster-scheduler-02-config.yml"
+          register: _openshift_install_create_manifests
+      always:
+        - debug:
+            msg: "{{ _openshift_install_create_manifests[item].split('\n') }}"
+          with_items: [stdout, stderr]
+          when: item in _openshift_install_create_manifests
+      vars:
+        install_config_exists: "[?item==`{{ installer_dir }}/install-config.yaml`].stat.exists | [0]"
+      when: _cluster_progress.results | json_query(install_config_exists) or
+        install_config_yaml is changed
+
+    - name: set mastersSchedulable to false
+      replace:
+        path: "{{ ansible_env.PWD }}/{{ installer_dir }}/manifests/cluster-scheduler-02-config.yml"
+        regexp: "(\\s+)mastersSchedulable: .*"
+        replace: "\\1mastersSchedulable: false"
+      vars:
+        cluster_scheduler_config_exists: "[?item==`{{ installer_dir }}/manifests/cluster-scheduler-02-config.yml`].stat.exists | [0]"
+      when: _cluster_progress.results | json_query(cluster_scheduler_config_exists) or
+        _openshift_install_create_manifests is changed
+
+    - block:
+        - name: openshift-install create ignition-configs
+          command: openshift-install --dir={{ installer_dir }} create ignition-configs
+          register: _openshift_install_create_ignition_configs
+      always:
+        - debug:
+            msg: "{{ _openshift_install_create_ignition_configs[item].split('\n') }}"
+          with_items: [stdout, stderr]
+          when: item in _openshift_install_create_ignition_configs
+      when: _cluster_progress.results | json_query(ignitions_exist) is not all
+      vars:
+        ignitions_exist: "[?item==`{{ installer_dir }}/bootstrap.ign` || item==`{{ installer_dir }}/master.ign` || item==`{{ installer_dir }}/worker.ign`].stat.exists"
+
+    #- fail: 
+    - name: upload bootstrap.ign
+      aws_s3:
+        aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID }}"
+        aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY }}"
+        s3_url: "{{ s3_endpoint_url }}"
+        bucket: "{{ s3_bucket }}"
+        src: "{{ ansible_env.PWD }}/{{ installer_dir }}/bootstrap.ign"
+        object: "{{ s3_filename }}"
+        mode: put
+        encrypt: false
+        object: "{{ s3_filename }}"
+        overwrite: different
+      register: _s3_upload
+
+    - name: presign url
+      command: aws --endpoint-url={{ s3_endpoint_url }} s3 presign s3://{{ s3_bucket }}/{{ s3_filename }}
+      # We don't really mind this change do we?
+      #when: not bootstrap_complete
+      register: _presign_url
+
+    # Can't use vars because: presedence
+    - name: Change facts for boot
+      set_fact:
+         okd_workers: 0
+
+    - name: Terraform template boot cluster
+      template:
+        src: "cluster.tf.j2"
+        dest: "cluster.tf"
+      vars:
+        okd_boot: 1
+        ignition_url: "{{ _presign_url.stdout }}"
+        network_name: public
+        ssh_cidrs: []
+        all_ports_cidrs: []
+        api_cidrs: []
+      when: _presign_url['stdout'] is defined
+
+    - block:
+        - name: Terraform init
+          command: "terraform init"
+          register: _terraform_init
+      always:
+        - debug:
+            msg: "{{ _terraform_init[item].split('\n') }}"
+          with_items: [stdout, stderr]
+          when: item in _terraform_init
+
+    - block:
+        - name: terraform apply with bootstrap
+          command: "terraform apply -auto-approve"
+          register: _terraform_apply_boot
+      always:
+        - debug:
+            msg: "{{ _terraform_apply_boot[item].split('\n') }}"
+          with_items: [stdout, stderr]
+          when: item in _terraform_apply_boot
+      when: not bootstrap_complete
+
+    - block:
+          # Bootstrap takes sometimes a long time. Wait for it twice.
+        - name: openshift-install wait-for bootstrap-complete
+          command: openshift-install --dir={{ installer_dir }}/ wait-for bootstrap-complete
+          ignore_errors: yes
+          register: _wait_for_bootstrap
+
+        - name: openshift-install wait-for bootstrap-complet , again
+          command: openshift-install --dir={{ installer_dir }}/ wait-for bootstrap-complete
+          register: _wait_for_bootstrap
+      always:
+        - debug:
+            msg: "{{ _wait_for_bootstrap[item].split('\n') }}"
+          with_items: [stdout, stderr]
+          when: item in _wait_for_bootstrap
+      when: not bootstrap_complete
+
+

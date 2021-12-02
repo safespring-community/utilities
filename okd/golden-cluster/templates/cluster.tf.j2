@@ -1,0 +1,38 @@
+module okd_cluster {
+  source = "github.com/safespring-community/terraform-modules.git//v2-okd-cluster-local-disk-gandi-dns?ref=v0.5.0"
+  cluster_name = "{{ okd_cluster_name }}"
+  openstack_base_image_name = "{{ okd_fcos_image }}"
+  domain_name = "{{ okd_base_domain }}"
+  openstack_loadbalancer_flavor_name = "{{ okd_loadbalancer_flavor | default('lm.small') }}"
+  openstack_master_flavor_name = "{{ okd_master_flavor | default('lm.large.1d') }}"
+  openstack_worker_flavor_name = "{{ okd_worker_flavor | default('lm.medium.1d') }}"
+
+  number_of_boot = "{{okd_boot }}"
+  number_of_masters = "{{ okd_masters | default(3) }}"
+  number_of_workers = "{{ okd_workers | default(2) }}"
+
+  network_name = "{{ network_name }}"
+
+  openstack_bootstrap_shim_ignition = "{\"ignition\":{\"version\":\"3.0.0\",\"config\":{\"replace\":{\"source\":\"{{ ignition_url }}\",\"verification\": {} } } } }"
+  ignition_master = "{{ lookup('file', './' ~ installer_dir ~ '/master.ign') | regex_replace('\"', '\\\"') }}"
+  ignition_worker = "{{ lookup('file', './' ~ installer_dir ~ '/worker.ign') | regex_replace('\"', '\\\"') }}"
+  allow_ssh_from_v4 = [
+  {% for cidr in ssh_cidrs %}
+      "{{ cidr }}"{% if not loop.last %},{% endif %}{{ "" }}
+  {% endfor %}
+  ]
+  
+  allow_api_from_v4 = [
+  {% for cidr in api_cidrs %}
+      "{{ cidr }}"{% if not loop.last %},{% endif %}{{ "" }}
+  {% endfor %}
+  ]
+  
+  allow_all_ports_from_v4 = [
+  {% for cidr in all_ports_cidrs %}
+      "{{ cidr }}"{% if not loop.last %},{% endif %}{{ "" }}
+  {% endfor %}
+  ]
+  public_key_path = "{{ ssh_key_path }}"
+}
+
