@@ -7,14 +7,6 @@
   vars:
     platform: openstack
     okd_ci_base_url: https://origin-release.apps.ci.l2s4.p1.openshiftapps.com
-    fcos_url_prefix: https://builds.coreos.fedoraproject.org
-    #okd_release: 4.5.0-0.okd-2020-10-15-235428
-    #okd_release: 4.6.0-0.okd-2021-01-23-132511
-    #okd_release: 4.7.0-0.okd-2021-04-24-103438
-    okd_release: 4.7.0-0.okd-2021-04-24-103438
-#    fcos_stream: stable
-#    fcos_release: 33.20210328.3.0
-    use_fcos_machine_os_from_okd_release: true
 
   pre_tasks:
     - include_vars: settings.yml
@@ -46,67 +38,29 @@
         - openshift-client-linux-{{ okd_release }}.tar.gz
         - openshift-install-linux-{{ okd_release }}.tar.gz
 
-    - block:
-      - name: Query origin-release api for okd machine-os fcos
-        uri:
-          url: "{{ okd_ci_base_url}}/releasetag/{{ okd_release }}/json"
-          return_content: true
-        register: _okd_release_details
+    - name: Get fcos meta json string from installer
+      shell: openshift-install coreos print-stream-json|jq '.architectures.x86_64.artifacts.openstack.formats."qcow2.xz".disk'
+      register: _fcos_meta_string
 
-      - name: Query builds coreos api for latest fcos in {{ fcos_stream | default('stable') }}
-        uri:
-          url: "https://builds.coreos.fedoraproject.org/streams/{{ fcos_stream | default('stable') }}.json"
-          return_content: true
-        register: _fcos_stream
-
-      - name: Hack. Set temporary _fcos_release
-        set_fact:
-          _fcos_release: "{{ use_fcos_machine_os_from_okd_release | ternary(
-            _okd_release_details.json.displayVersions['machine-os'].Version,
-            _fcos_stream.json.architectures.x86_64.artifacts[platform].release
-          ) }}"
-
-      - name: Get all stream builds
-        uri:
-          url: "{{fcos_url_prefix}}/prod/streams/{{ stream }}/builds/builds.json"
-          return_content: true
-        loop_control:
-          loop_var: stream
-        with_items:
-          - stable
-          - testing-devel
-          - next
-        register: _builds
-
-      - name: Find stream and release matching fcos_release {{ _fcos_release }}
-        set_fact:
-          _found_fcos: "{{ _builds.results | to_json | from_json | json_query(stream_release) }}"
-        vars:
-          stream_release: "[?json.builds[?starts_with(id, '{{ _fcos_release }}')]].{stream: stream, release: json.builds[?starts_with(id, '{{ _fcos_release }}')].id | [0]} | [0]"
-
-      - name: "Set_fact fcos_stream: {{ _found_fcos.stream }}"
-        set_fact:
-          fcos_stream: "{{ _found_fcos.stream }}"
-        when: fcos_stream is not defined
-
-      - name: "set_fact fcos_release: {{ _found_fcos.release }}"
-        set_fact:
-          fcos_release: "{{ _found_fcos.release }}"
-      when:
-        - fcos_release is not defined
-    - name: Gather meta on fcos {{ fcos_release }}
-      uri:
-        url: "{{fcos_url_prefix}}/prod/streams/{{ fcos_stream }}/builds/{{ fcos_release }}/x86_64/meta.json"
-        return_content: true
-      register: _fcos_meta
-
-    - name: set facts for fcos {{ fcos_release }} meta
+    - name: Set fact for fcos meta
       set_fact:
-        fcos_file_xz:           "{{ _fcos_meta.json.images[platform].path }}"
-        fcos_file_xz_sha256:    "{{ _fcos_meta.json.images[platform].sha256 }}"
-        fcos_file_qcow2:        "{{ _fcos_meta.json.images[platform].path | regex_replace('\\.xz$', '')}}"
-        fcos_file_qcow2_sha256: "{{ _fcos_meta.json.images[platform]['uncompressed-sha256'] }}"
-        fcos_file_raw:          "{{ _fcos_meta.json.images[platform].path | regex_replace('\\.qcow2\\.xz$', '.raw') }}"
+        _fcos_meta: "{{ _fcos_meta_string.stdout |from_json }}"
+
+    - name: Set fcos release from installer
+      shell: openshift-install coreos print-stream-json|jq -r '.architectures.x86_64.artifacts.openstack.release'
+      register: _fcos_release
+
+    - name: Set fact for fcos release
+      set_fact:
+        fcos_release: "{{ _fcos_release.stdout }}"
+
+
+    - name: set facts for fcos {{ _fcos_release }} meta
+      set_fact:
+        fcos_file_xz_sha256: "{{ _fcos_meta.sha256}}"
+        fcos_file_location: "{{ _fcos_meta.location}}"
+        fcos_file_xz: "fedora-coreos-{{_fcos_release.stdout }}-openstack.x86_64.qcow2.xz"
+        fcos_file_qcow2: "fedora-coreos-{{ fcos_release }}-openstack.x86_64.qcow2"
     
     - name: check for decompressed {{ fcos_file_qcow2 }}
       stat:
@@ -115,7 +69,7 @@
     
     - name: Download {{ fcos_file_xz }}
       get_url:
-        url: "https://builds.coreos.fedoraproject.org/prod/streams/{{ fcos_stream }}/builds/{{ fcos_release }}/x86_64/{{ fcos_file_xz }}"
+        url: " {{fcos_file_location }}"
         dest: "{{ ansible_env.PWD }}/{{ fcos_file_xz }}"
         checksum: "sha256:{{ fcos_file_xz_sha256 }}"
       when: _decompressed.stat.exists == false
@@ -125,22 +79,10 @@
       args:
         creates: "{{ ansible_env.PWD }}/{{ fcos_file_qcow2 }}"
     
-    # https://docs.ceph.com/docs/master/rbd/qemu-rbd/
-    # Important The raw data format is really the only sensible format option to use with RBD. Technically, you could use other
-    # QEMU-supported formats (such as qcow2 or vmdk), but doing so would add additional overhead, and would also render the
-    # volume unsafe for virtual machine live migration when caching (see below) is enabled.
-    - name: Convert {{ fcos_file_qcow2 }} to {{ fcos_file_raw }}
-      command: >-
-        qemu-img convert -f qcow2 -O raw \
-        {{ ansible_env.PWD }}//{{ fcos_file_qcow2 }}
-        {{ ansible_env.PWD }}//{{ fcos_file_raw }}
-      args:
-        creates: "{{ ansible_env.PWD }}//{{ fcos_file_raw }}"
-      when: to_ceph | default(false)
     
     - name: Upload fedora-coreos {{ fcos_release }}
       os_image:
-        filename: "{{ ansible_env.PWD }}/{{ to_ceph | default(false) | ternary(fcos_file_raw, fcos_file_qcow2) }}"
+        filename: "{{ ansible_env.PWD }}/{{ fcos_file_qcow2 }}"
         name: "fedora-coreos-{{ fcos_release }}-openstack.x86_64"
         disk_format: "{{ (to_ceph | default(false)) | ternary('raw', 'qcow2') }}"
         is_public: "{{ is_public | default(false) }}"
@@ -153,4 +95,4 @@
       replace:
         path: settings.yml
         regexp: "^okd_fcos_image: .*$"
-        replace: "okd_fcos_image: fedora-coreos-{{ fcos_release }}-{{ platform }}.x86_64"
+        replace: "okd_fcos_image: fedora-coreos-{{ fcos_release }}-openstack.x86_64"

@@ -156,7 +156,7 @@
           ignore_errors: yes
           register: _wait_for_bootstrap
 
-        - name: openshift-install wait-for bootstrap-complet , again
+        - name: openshift-install wait-for bootstrap-complete , again
           command: openshift-install --dir={{ installer_dir }}/ wait-for bootstrap-complete
           register: _wait_for_bootstrap
       always:
@@ -166,4 +166,12 @@
           when: item in _wait_for_bootstrap
       when: not bootstrap_complete
 
-
+    - name: Next steps
+      debug:
+        msg: "{{ message.split('\n') }}"
+      vars:
+        message: |
+          The cluster control plane is now bootstrapped
+          so boot node can be removed and worker nodes
+          provisioned. Please run the next playbook
+          to do that

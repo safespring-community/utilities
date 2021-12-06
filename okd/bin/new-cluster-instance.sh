@@ -17,12 +17,21 @@ BASE_DIR="${SCRIPT_DIR}/.."
 function make_settings {
 cat <<EOF
 ---
-#uncomment and change default settings as needed
+# uncomment and change default settings as needed
+# terraform_version: "1.0.11"
 
 okd_cluster_name: $1
 okd_base_domain: $2
 
-# You can leave this blank for now, it  will be filled in later by running image-installer.yml playbook
+# If you don't set a specific okd_version, tha lates from the stable strem will be used.
+# If it does not work well, try to step back using specific releases from:
+# https://github.com/openshift/okd/releases/
+#
+# okd_version:
+
+# You can okd_fcos_image, it  will be filled in later by running image-installer.yml playbook
+# Don't uncomment it though.
+
 okd_fcos_image: 
 
 

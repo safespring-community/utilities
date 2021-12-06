@@ -37,27 +37,14 @@
         port: 6443
         host: "api.{{okd_cluster_name}}.{{okd_base_domain}}"
 
-#    - name: "verify that all the csr are loaded and aproved for the deployed nodes"
-#      shell: |
-#        set -eo pipefail
-#        until \
-#          [ $(oc get nodes -o json | jq '[.items[].metadata.labels | select(."node-role.kubernetes.io/master" == "")] | length') -eq {{ okd_masters |default(3) }} ] && \
-#          [ $(oc get nodes -o json | jq '[.items[].metadata.labels | select(."node-role.kubernetes.io/worker" == "")] | length') -eq {{ okd_workers |default(3) }} ]
-#        do
-#          oc get csr -o json | jq -r '.items[] | select(.status == {} ) | .metadata.name' | xargs oc adm certificate approve
-#        done
-#      environment:
-#        KUBECONFIG: "{{ installer_dir }}/auth/kubeconfig"
-#      register: _oc_csr
-#      args:
-#        executable: /bin/bash
-#
-#    - debug:
-#        var: _oc_csr
-
-    - name: openshift-install wait-for install-complete
-      command: openshift-install --dir={{ installer_dir }}/ wait-for install-complete
-      register: _wait_for_install
-    - debug:
-        var: _wait_for_install
-## dummy
+    - name: Next steps
+      debug:
+        msg: "{{ message.split('\n') }}"
+      vars:
+        message: |
+          Worker nodes are now provisioned and boot node removed
+          worker nodes will ask to join the cluster and you must approve CSR to let that happen
+          See https://docs.openshift.com/container-platform/4.9/machine_management/more-rhel-compute.html#installation-approve-csrs_more-rhel-compute
+          After that you can run;
+          openshift-install --dir=installer wait-for install-complete
+          When it returns the cluster shoudl be operational, and it should output an auto generated password for the admins usesr kubeadmin
