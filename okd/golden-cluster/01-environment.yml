@@ -7,11 +7,21 @@
     terraform_version: 1.0.11
 
   tasks:
+    - name: Create a directories if they don't exist
+      ansible.builtin.file:
+        path: "{{item}}"
+        state: directory
+        mode: '0755'
+      with_items:
+        - "{{ ansible_env.HOME }}/.local/bin"
+        - "{{ ansible_env.HOME }}/.local/share/bash-completion/completions"
+
     - name: get terraform binary from hashicorp
       get_url:
         url: https://releases.hashicorp.com/terraform/{{ terraform_version }}/terraform_{{ terraform_version }}_linux_amd64.zip
         dest: "{{ ansible_env.PWD }}/terraform_{{ terraform_version }}_linux_amd64.zip"
         checksum: "sha256:https://releases.hashicorp.com/terraform/{{ terraform_version }}/terraform_{{ terraform_version }}_SHA256SUMS"
+
     - name: install terraform to .local/bin
       unarchive:
         src: "{{ ansible_env.PWD }}/terraform_{{ terraform_version }}_linux_amd64.zip"
@@ -24,17 +34,13 @@
         dest: "{{ ansible_env.HOME }}/.local/bin"
         creates: "{{ ansible_env.HOME }}/.local/bin/oc"
 
-    - name: save bash-completion script for openshift-client
-      copy:
-        content: "{{ lookup('pipe', 'oc completion bash') }}"
-        dest: "{{ ansible_env.HOME }}/.local/share/bash-completion/completions/oc"
-
     - name: Install openstack libs and tools
       pip:
-        extra_args: "--user"
+        extra_args: "--user --upgrade"
         name:
           - python-openstackclient
           - boto3
+          - awscli
           - os-client-config
 
     - name: save bash-completion script for openstack-client
@@ -42,41 +48,14 @@
         content: "{{ lookup('pipe', 'openstack complete') }}"
         dest: "{{ ansible_env.HOME }}/.local/share/bash-completion/completions/openstack"
 
-    - block:
-      - name: get aws-cli
-        unarchive:
-          src: https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
-          remote_src: true
-          dest: "{{ ansible_env.HOME }}"
-        register: _aws_download
-
-      - name: install aws for local user
-        command: >-
-          {{ ansible_env.HOME }}/aws/install
-          -i {{ ansible_env.HOME }}/.local/aws-cli
-          -b {{ ansible_env.HOME }}/.local/bin
-        args:
-          creates: "{{ ansible_env.HOME }}/.local/bin/aws"
-        register: _aws_install
-
-      - name: update aws for local user
-        command: >-
-          {{ ansible_env.HOME }}/aws/install --update
-          -i {{ ansible_env.HOME }}/.local/aws-cli
-          -b {{ ansible_env.HOME }}/.local/bin
-        when:
-          - _aws_download is changed
-          - _aws_install is not changed
-      when: install_aws_cli == true
-
     - name: Show checklist
       debug:
         msg: "{{ message.split('\n') }}"
       vars:
         message: |
-          Hey! Things you could do next;
-            * Copy the settings-template and change according to your needs
+          Next steps;
+            * Adjust settings.yml according to your needs
+            * Include $HOME/.local/bin (first) in yor PATH
 
           Then continue here;
-            * ansible-playbook image-installer.yml
-            * ansible-playbook cluster.yml
+            * ansible-playbook 02-image-installer.yml
