@@ -1,6 +1,6 @@
 ## Tooling for OKD 4.X installation
 
-Here is the scripts, playbooks and templates neede to install OKD
+Here are the scripts, playbooks, and templates needed to install OKD
 using the terraform module(s) in https://github.com/safespring-community/terraform-modules
 
 ### Prerequisites
@@ -10,11 +10,11 @@ using the terraform module(s) in https://github.com/safespring-community/terrafo
   * VCPUs: 16
   * Security groups: 15
   * Security group rules: 40
-* Storage access to s3 in sto2 site
-* A livedns domain @ gandi.net
+* Storage access to S3 in sto2 site
+* A liveDNS domain @ gandi.net
 * An API key for your gandi.net user
 
-### Creating an okd cluster instance
+### Creating an OKD cluster instance
 
 * Export openstack environment variables
   * `OS_PASSWORD=`
@@ -44,6 +44,4 @@ To approve CSRs for joining worker nodes (after control plane bootstrap):
 * `oc get csr -o go-template='{{range .items}}{{if not .status}}{{.metadata.name}}{{"\n"}}{{end}}{{end}}' | xargs --no-run-if-empty oc adm certificate approve`
 * `oc get nodes` (Workers should appear, first as NotReady, then become ready after a while)
 
-PS: Be patient. It takes up to an hour for okd to assemble itself. But if there
-is no changes in cluster operator status for ca. 15 minutes things might have
-stalled."
+PS: Be patient. It takes up to an hour for OKD to assemble itself. But if there are no changes in cluster operator status for ca. 15 minutes, the installation might have stalled.
