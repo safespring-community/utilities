@@ -39,6 +39,14 @@ okd_fcos_image:
 # okd_master_flavor: "lm.large.1d"
 # okd_worker_flavor: "lm.medium.1d"
 
+# Type of cluster
+#  * local-disk for all nodes on local disk
+#  * worker-central-disk for workers on central disk (default disk size is 50G baut can be overriden with okd_worker_disk_size)
+
+# okd_cluster_type: "local-disk"
+# Only relevant when workers are on central disk
+# okd_worker_disk_size: 50
+
 # okd_masters: 3
 # okd_workers: 2
 
