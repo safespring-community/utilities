@@ -45,3 +45,5 @@ To approve CSRs for joining worker nodes (after control plane bootstrap):
 * `oc get nodes` (Workers should appear, first as NotReady, then become ready after a while)
 
 PS: Be patient. It takes up to an hour for OKD to assemble itself. But if there are no changes in cluster operator status for ca. 15 minutes, the installation might have stalled.
+
+!!!note "To remove cluster just run `terraform destroy`. Do not reuse the created installer directory when re-installing a cluster. The certificates in the installer director expire after 24 hours. The playbook will create a new one if does not exist: thus just remove the olda one after ´terraform destroy`."
