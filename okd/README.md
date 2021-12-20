@@ -51,8 +51,8 @@ PS: Be patient. It takes up to an hour for OKD to assemble itself. But if there 
 
 To remove cluster just run `terraform destroy`. Do not reuse the created
 installer directory when re-installing a cluster. The certificates in the
-installer director expire after 24 hours. The playbook will create a new one if
-does not exist: thus just remove the olda one after ´terraform destroy`.
+installer directory expire after 24 hours. The playbook will create a new installer directory if it
+does not exist: thus just remove the old one after `terraform destroy`.
 
 
 ---
