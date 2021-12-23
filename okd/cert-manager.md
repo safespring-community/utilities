@@ -79,8 +79,8 @@ $ oc create secret generic gandi-credentials \
 
 This will create a cluster issuer with the LetsEncrypti staging environment. When this
 is working, switch to the production ernvironment to get proper certificates
-with full trust chain. The stagin environment is good for testing to avoid consuming from
-the rate-limited prodction API of LetsEncrypt
+with full trust chain. The staging environment is good for testing to avoid consuming from
+the rate-limited production API of LetsEncrypt
 
 Remember to set a valid email address.
 
@@ -110,7 +110,7 @@ spec:
               name: gandi-credentials
 ```
 
-## Ingress wildcard cert for *.apps.<cluster_name>.<domain>
+## Ingress wildcard cert for `*.apps.<cluster_name>.<domain>`
 
 
 Apply this: (remember quotes around the dnsname)
@@ -150,7 +150,7 @@ metadata:
   namespace: openshift-config
 spec:
   dnsNames:
-  - 'api.wip.saft.in'
+  - 'api.<cluster_name>.<domain>'
   issuerRef:
     kind: ClusterIssuer
     name: letsencrypt-staging
@@ -168,7 +168,7 @@ After the new API certifacate is active, the KUBECONFIG from installer
 directeory stops working because the CA for the API certificate now is
 different from the cluster issuer. After this you can use `oc login` with
 the `kubeadmin` user. The password is in the same installer subdirectory
-the kubeconfig file
+as the kubeconfig file
 
 If the new API cert is from the staging environment it will also be invalid
 (due to incomplete trust chain). This can be worked around like so:
@@ -182,13 +182,12 @@ function openshift_get_token {$
   fi$
 }
 
-$ oc login https://api.wip.saft.in:6443 --insecure-skip-tls-verify=true --token="$(openshift_get_token <clustername>.<domain>)"
+$ oc login https://api.<cluster_name>.<domain>:6443 --insecure-skip-tls-verify=true --token="$(openshift_get_token <clustername>.<domain>)"
 ```
-
 
 ## Additional resources
 
-Here is some more resources for backround and/or alternate apporaches.
+Here is some more resources for background and/or alternate approaches.
 
 * https://rcarrata.com/openshift/ocp4_renew_automatically_certificates/
 * https://www.redhat.com/sysadmin/cert-manager-operator-openshift
