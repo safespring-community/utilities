@@ -67,6 +67,7 @@ $ helm install cert-manager-webhook-gandi \
     --set image.tag=latest \
     --set logLevel=2 \
     ./cert-manager-webhook-gandi/deploy/cert-manager-webhook-gandi
+```
 
 Create secret with your gandi api key
 ```
