@@ -1,15 +1,36 @@
-oc create namespace cert-manager
+# Cert-manager on OKD
 
-oc get packagemanifests |grep cert-m
+First export the KUBECONFIG environment variable to authenticate as
+cluster-admin.
 
+```
+$ export KUBECONFIG=./installer/auth/kubeconfig
+```
 
+## Install cert manager operator
+
+Create a new namespace/project:
+```
+$ oc create namespace cert-manager
+```
+
+Create a global operator group in project (apply this):
+```
 apiVersion: operators.coreos.com/v1
 kind: OperatorGroup
 metadata:
   name: cert-manager
   namespace: cert-manager
+```
+More info: https://docs.openshift.com/container-platform/4.9/operators/understanding/olm/olm-understanding-operatorgroups.html
 
+Finding cert-manager operator metadata
+```
+oc describe packagemanifest cert-manager
+```
 
+Install the operator to the project (apply this)
+```
 apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
 metadata:
@@ -20,62 +41,50 @@ spec:
   name: cert-manager
   source: community-operators
   sourceNamespace: openshift-marketplace
+```
 
+## Create webhook for certmanager to verify dns01 challenges with Gandi DNS
 
- kubectl create secret generic gandi-credentials \
-     --namespace cert-manager --from-literal=api-token="$(cat ./gk)"
-secret/gandi-credentials created
+There is no dns01 provider for Gandi DNS API built into cert-manager, but this
+webhook implements the necessary glue to let cert-manager do
+dns01-verifications with gandi.
+```
+git clone https://github.com/safespring-community/cert-manager-webhook-gandi.git
+cd cert-manager-webhook-gandi
+less README.md
+```
 
-git clone https://github.com/bwolf/cert-manager-webhook-gandi.git
+When/if this PR (https://github.com/bwolf/cert-manager-webhook-gandi/pull/18)
+is merged you can switch to use the upstream repository
+https://github.com/bwolf/cert-manager-webhook-gandi
 
- helm install cert-manager-webhook-gandi \
-     --namespace cert-manager \
-     --set features.apiPriorityAndFairness=true \
-     --set image.repository=bwolf/cert-manager-webhook-gandi \
-     --set image.tag=latest \
-     --set logLevel=2 \
-     ./cert-manager-webhook-gandi/deploy/cert-manager-webhook-gandi
+Install the webhook helm chart.
+```
+$ helm install cert-manager-webhook-gandi \
+    --namespace cert-manager \
+    --set features.apiPriorityAndFairness=true \
+    --set image.repository=bwolf/cert-manager-webhook-gandi \
+    --set image.tag=latest \
+    --set logLevel=2 \
+    ./cert-manager-webhook-gandi/deploy/cert-manager-webhook-gandi
 
-# Need to modify helm chart to let webhook listen to 8443 since 443 is not allowed by okd 
+Create secret with your gandi api key
+```
+$ oc create secret generic gandi-credentials \
+    --namespace cert-manager --from-literal=api-token="$(echo ${GANDI_KEY})"
+```
 
-diff --git a/deploy/cert-manager-webhook-gandi/templates/deployment.yaml b/deploy/cert-manager-webhook-gandi/templates/deployment.yaml
-index 073a61b..9761f72 100644
---- a/deploy/cert-manager-webhook-gandi/templates/deployment.yaml
-+++ b/deploy/cert-manager-webhook-gandi/templates/deployment.yaml
-@@ -26,6 +26,7 @@ spec:
-           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-           imagePullPolicy: {{ .Values.image.pullPolicy }}
-           args:
-+            - --secure-port=8443
-             - --tls-cert-file=/tls/tls.crt
-             - --tls-private-key-file=/tls/tls.key
- {{- if .Values.logLevel }}
-@@ -36,7 +37,7 @@ spec:
-               value: {{ .Values.groupName | quote }}
-           ports:
-             - name: https
--              containerPort: 443
-+              containerPort: 8443
-               protocol: TCP
-           livenessProbe:
-             httpGet:
-diff --git a/deploy/cert-manager-webhook-gandi/templates/service.yaml b/deploy/cert-manager-webhook-gandi/templates/service.yaml
-index 817c60c..8b4cea6 100644
---- a/deploy/cert-manager-webhook-gandi/templates/service.yaml
-+++ b/deploy/cert-manager-webhook-gandi/templates/service.yaml
-@@ -12,9 +12,9 @@ spec:
-   type: {{ .Values.service.type }}
-   ports:
-     - port: {{ .Values.service.port }}
--      targetPort: https
-+      targetPort: 8443
-       protocol: TCP
-       name: https
-   selector:
-     app: {{ include "cert-manager-webhook-gandi.name" . }}
+# Create a cluster issuer
 
+This will create a cluster issuer with the LetsEncrypti staging environment. When this
+is working, switch to the production ernvironment to get proper certificates
+with full trust chain. The stagin environment is good for testing to avoid consuming from
+the rate-limited prodction API of LetsEncrypt
 
-# Cluster issuer
+Remember to set a valid email address.
+
+To create the LE-staging cluster issuer, apply this
+```
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
@@ -98,10 +107,13 @@ spec:
             apiKeySecretRef:
               key: api-token
               name: gandi-credentials
+```
 
-# Ingress cert
-https://docs.okd.io/latest/security/certificates/replacing-default-ingress-certificate.html
+## Ingress wildcard cert for *.apps.<cluster_name>.<domain>
 
+
+Apply this: (remember quotes around the dnsname)
+```
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
@@ -109,20 +121,27 @@ metadata:
   namespace: openshift-ingress
 spec:
   dnsNames:
-  - '*.apps.wip.saft.in'
+  - '*.apps.<cluster_name>.<domain>'
   issuerRef:
     kind: ClusterIssuer
     name: letsencrypt-staging
   secretName: okd-apps-wildcard-tls
+```
+If all goes well a new secret named `okd-apps-wildcard-tls` should appear in
+the `openshift-ingress` namespace/project after a while
 
-oc patch ingresscontroller.operator default --type=merge -p '{"spec":{"defaultCertificate": {"name": "okd-apps-wildcard-tls"}}}' -n openshift-ingress-operator
+Then patch the ingress controller to use the new cert.
+```
+$ oc patch ingresscontroller.operator default --type=merge -p '{"spec":{"defaultCertificate": {"name": "okd-apps-wildcard-tls"}}}' -n openshift-ingress-operator
+```
+
+Ref: https://docs.okd.io/latest/security/certificates/replacing-default-ingress-certificate.html
+
+# API server certificate
 
 
-# API-server 
-
-https://docs.okd.io/latest/security/certificates/api-server.html
-
- cat api-cert.yaml
+Apply this: (remember quotes around the dnsname)
+```
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
@@ -135,7 +154,42 @@ spec:
     kind: ClusterIssuer
     name: letsencrypt-staging
   secretName: okd-api-tls
+```
+
+Then patch openshift config to use the new cert for API
+```
+$ oc patch apiserver cluster --type=merge -p '{"spec":{"servingCerts": {"namedCertificates": [{"names": ["<FQDN>"], "servingCertificate": {"name": "<secret>"}}]}}}'
+```
+
+Ref: https://docs.okd.io/latest/security/certificates/api-server.html
+
+After the new API certifacate is active, the KUBECONFIG from installer
+directeory stops working because the CA for the API certificate now is
+different from the cluster issuer. After this you can use `oc login` with
+the `kubeadmin` user. The password is in the same installer subdirectory
+the kubeconfig file
+
+If the new API cert is from the staging environment it will also be invalid
+(due to incomplete trust chain). This can be worked around like so:
+```
+function openshift_get_token {$
+  if [ -z $1 ]$
+  then$
+    echo "Usage: $0  <clustername>.<domain>"$
+  else$
+    curl -u "kubeadmin:$(cat installer/auth/kubeadmin-password)" "https://oauth-openshift.apps.$1/oauth/authorize?client_id=openshift-challenging-client&response_type=token" -H "X-CSRF-Token: foobar" -skv  --stderr - | grep -oP "access_token=\K[^&]*"$
+  fi$
+}
+
+$ oc login https://api.wip.saft.in:6443 --insecure-skip-tls-verify=true --token="$(openshift_get_token <clustername>.<domain>)"
+```
 
 
-oc patch apiserver cluster --type=merge -p '{"spec":{"servingCerts": {"namedCertificates": [{"names": ["<FQDN>"], "servingCertificate": {"name": "<secret>"}}]}}}' 
+## Additional resources
 
+Here is some more resources for backround and/or alternate apporaches.
+
+* https://rcarrata.com/openshift/ocp4_renew_automatically_certificates/
+* https://www.redhat.com/sysadmin/cert-manager-operator-openshift
+* https://docs.openshift.com/container-platform/4.8/operators/admin/olm-adding-operators-to-cluster.html
+* https://stackoverflow.com/questions/49501133/how-to-get-openshift-session-token-using-rest-api-calls
