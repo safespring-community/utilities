@@ -86,7 +86,9 @@ openstack-cinder-csi-nodeplugin-z5s52                    3/3     Running   0    
 $ oc logs openstack-cinder-csi-controllerplugin-6dcbdd9bc8-qrpjn
 error: a container name must be specified for pod openstack-cinder-csi-controllerplugin-6dcbdd9bc8-qrpjn, choose one of: [csi-attacher csi-provisioner csi-snapshotter csi-resizer liveness-probe cinder-csi-plugin]
 $ oc logs openstack-cinder-csi-controllerplugin-6dcbdd9bc8-qrpjn -c cinder-csi-plugin
-(..)
+(...)
+$ oc get events
+(...)
 $ oc get storageclass
 NAME                   PROVISIONER                RECLAIMPOLICY   VOLUMEBINDINGMODE   ALLOWVOLUMEEXPANSION   AGE
 csi-cinder-sc-delete   cinder.csi.openstack.org   Delete          Immediate           true                   19h
