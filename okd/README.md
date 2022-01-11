@@ -10,6 +10,7 @@ using the terraform module(s) in https://github.com/safespring-community/terrafo
   * VCPUs: 16
   * Security groups: 15
   * Security group rules: 40
+* An ACL entry allowing openstack API access from your source IP address. This can be obtained by sending an email to <support@safespring.com>
 * Storage access to S3 in sto2 site
 * A liveDNS domain @ gandi.net
 * An API key for your gandi.net user
