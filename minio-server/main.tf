@@ -51,7 +51,7 @@ module  minio_server{
   security_groups = [module.sg.name]
   prefix = "minio"
   volume_size = 20
-  domain_name = "safedc.net"
+  domain_name = "example.com"
   flavor = "lb.small"
   role = "minio_server"
 }
