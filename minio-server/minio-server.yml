@@ -1,6 +1,46 @@
 - hosts: os_metadata_role=minio_server
-#  gather_facts: no
   remote_user: ubuntu
   become: true
   roles:
     - { role: atosatto.minio }
+  pre_tasks:
+    - name: Ensure mount point exists
+      file:
+        path: "{{ datadir1 }}"
+        state: directory
+    - name: Data file system
+      filesystem:
+        fstype: xfs
+        dev: "/dev/sdb" # THis will be the central disk if using flavor lX.small . (No extra local disk) Otherwise it will be sdc or more
+    - name: Mount data fs
+      mount:
+        path: "{{ datadir1 }}"
+        state: mounted
+        fstype: xfs
+        src: "/dev/sdb"
+    - name: create random password
+      set_fact:
+        _password: "{{ lookup('password', '/dev/null') }}"
+  vars:
+    datadir1: "/data/minio"
+    minio_access_key: "minioadmin"
+    minio_secret_key: "{{ _password }}"
+    minio_server_datadirs:
+      - "{{ datadir1 }}"
+  tasks:
+    - name: Snaps
+      snap:
+        name: certbot
+        classic: yes
+    - block:
+      - name: Create temporary file
+        tempfile:
+          state: file
+          suffix: temp
+        register: pwfile
+      - name: Save server password in local tmp file
+        copy:
+          dest: "{{ pwfile.path }}"
+          content: "Use this command to configure mc\nWhen tls is enabled run with https://fqdns:9091\nmc alias set minioadmin http://{{ansible_default_ipv4.address}}:9091 minioadmin {{ _password }}"
+      delegate_to: localhost
+      become: false
