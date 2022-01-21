@@ -29,11 +29,14 @@ okd_base_domain: $2
 #
 # okd_version:
 
-# You can okd_fcos_image, it  will be filled in later by running image-installer.yml playbook
+# You can skip specifyng okd_fcos_image, it  will be filled in later by running image-installer.yml playbook
 # Don't uncomment it though.
 
 okd_fcos_image: 
 
+# There is different cluster types using different module variations. Default is to have all nodes except
+# lb on local disk. Possible values: worker-central-disk
+# okd_cluster_type: "worker-central-disk"
 
 # okd_loadbalancer_flavor: "lm.small"
 # okd_master_flavor: "lm.large.1d"
@@ -64,7 +67,7 @@ s3_filename: "{{okd_cluster_name}}-{{okd_base_domain}}.ign"
 
 # Change endpoint url if you s3 bucket resides elsewhere
 # Make sure that aws s3 presign works on the bucket objekt.
-s3_endpoint_url: "https://s3.sto2.safedc.net"
+s3_endpoint_url: "https://minio-1.safedc.net:9091"
 
 ssh_key_path: "~/.ssh/id_rsa.pub"
 EOF
