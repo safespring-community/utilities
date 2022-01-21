@@ -15,6 +15,9 @@ okd_base_domain: saft.in
 
 okd_fcos_image:
 
+# There is different cluster types using different module variations. Default is to have all nodes except
+# lb on local disk. Possible values: worker-central-disk
+#okd_cluster_type: "worker-central-disk"
 
 # okd_loadbalancer_flavor: "lm.small"
 # okd_master_flavor: "lm.large.1d"

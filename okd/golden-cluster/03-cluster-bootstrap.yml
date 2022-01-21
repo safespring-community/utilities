@@ -4,6 +4,7 @@
 
   vars:
     installer_dir: installer
+    okd_cluster_type: "" # Templating fails if this var is non existent. Due to if test in template.
 
   pre_tasks:
     - include_vars: settings.yml
