@@ -10,10 +10,10 @@ okd_base_domain: saft.in
 #
 # okd_version: 
 
-# You can okd_fcos_image, it  will be filled in later by running image-installer.yml playbook
+# You can skip specifyng okd_fcos_image, it  will be filled in later by running image-installer.yml playbook
 # Don't uncomment it though. 
 
-okd_fcos_image: fedora-coreos-34.20210626.3.1-openstack.x86_64
+okd_fcos_image:
 
 
 # okd_loadbalancer_flavor: "lm.small"
