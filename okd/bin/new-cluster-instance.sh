@@ -62,7 +62,7 @@ ssh_cidrs:
 # so it needs to be uploaded to bucket and pulle from ther instead.
 # You must export AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
 # and the bucket name must exist
-s3_bucket: "your-bucket-name"
+s3_bucket: "$3"
 s3_filename: "{{okd_cluster_name}}-{{okd_base_domain}}.ign"
 
 # Change endpoint url if you s3 bucket resides elsewhere
@@ -75,19 +75,20 @@ EOF
 
 if [[ -z $3 ]]
 then
-  echo "Usage: $0 cluster-name gandi-domain-name base-directory"
+  echo "Usage: $0 cluster-name gandi-domain-name S3-bucket base-directory"
   exit 1
 fi
 
 CLUSTER_NAME=$1
 DOMAIN=$2
-DIR=$3
+S3_BUCKET=$3
+DIR=$4
 
 mkdir -p ${DIR}
 
 echo "Copying playbooks, settings and templates to your destination: ${DIR}/${CLUSTER_NAME}.${DOMAIN}"
 cp -r ${BASE_DIR}/golden-cluster  ${DIR}/${CLUSTER_NAME}.${DOMAIN}
-make_settings ${CLUSTER_NAME} ${DOMAIN} ${DIR}/${CLUSTER_NAME}.${DOMAIN} > ${DIR}/${CLUSTER_NAME}.${DOMAIN}/settings.yml
+make_settings ${CLUSTER_NAME} ${DOMAIN} ${S3_BUCKET} > ${DIR}/${CLUSTER_NAME}.${DOMAIN}/settings.yml
 
 echo "Now cd to ${DIR}/${CLUSTER_NAME}.${DOMAIN}, change settings.yml to your needs run the playbooks in order"
 echo "Each playbook must complete successfully before the next is run"

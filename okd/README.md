@@ -11,7 +11,7 @@ using the terraform module(s) in https://github.com/safespring-community/terrafo
   * Security groups: 15
   * Security group rules: 40
 * An ACL entry allowing openstack API access from your source IP address. This can be obtained by sending an email to <support@safespring.com>
-* Storage access to S3 in sto2 site
+* As S3 bucket to redirecti the ignition file of the boot node (it is too big to be posted directly to the API). This can be obtained by sending an email to <support@safespring.com>
 * A liveDNS domain @ gandi.net
 * An API key for your gandi.net user
 
@@ -29,7 +29,7 @@ using the terraform module(s) in https://github.com/safespring-community/terrafo
 * Export `GANDI_KEY`
 * Export `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
   * For uploading ignition file to s3 bucket
-* Run `./bin/new-cluster-instance.sh <cluster-name> <gandi-livedns-domain> <directory>`
+* Run `./bin/new-cluster-instance.sh <cluster-name> <gandi-livedns-domain> <S3-bucke-name> <directory>`
   * This will copy all you need to a directory of you own choosing
 * `cd <directory>`
 * Run the ansible playbooks in order and follow the instructions at the end of each one of them
