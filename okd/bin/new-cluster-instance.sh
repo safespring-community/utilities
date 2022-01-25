@@ -23,7 +23,7 @@ cat <<EOF
 okd_cluster_name: $1
 okd_base_domain: $2
 
-# If you don't set a specific okd_version, tha lates from the stable strem will be used.
+# If you don't set a specific okd_version, the latest from the stable stream will be used.
 # If it does not work well, try to step back using specific releases from:
 # https://github.com/openshift/okd/releases/
 #
@@ -70,6 +70,30 @@ s3_filename: "{{okd_cluster_name}}-{{okd_base_domain}}.ign"
 s3_endpoint_url: "https://minio-1.safedc.net:9091"
 
 ssh_key_path: "~/.ssh/id_rsa.pub"
+
+# This multiline variable contains the terraform code to define worker sets
+# It should be a terraform map variable defining all the worker sets.
+# When playbook 04-cluster-finalize.yml is run, the worker sets can be changed
+# by editing cluster.tf (the rendered terraform config) or edit the variable here and
+# re-run 04-cluster-finalize.yml
+# In order to finalize the cluster setup the "first" set is necessary
+# Worker sets can be changed in any direction at any time to adapt the changing needs.
+# Just make sure it is in line with applications running (evacuate, cordon and delet nodes before scaling down.)
+# Please adapt flavors according to the choice of worekr type (local disk or central disk).
+# I.e. change to flavor not starting with "l" if choosing  okd_cluster_type: "worker-central-disk"
+workersets: |
+  workersets = {
+    "first" = {
+      prefix = "initial-worker"
+      flavor = "lm.medium.1d"
+      count  = 2
+    }
+    #"second" = {
+    #  prefix = "large-worker"
+    #  flavor = "lm.large.1d"
+    #  count  = 2
+    #}
+  }
 EOF
 }
 

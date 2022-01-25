@@ -11,7 +11,7 @@ using the terraform module(s) in https://github.com/safespring-community/terrafo
   * Security groups: 15
   * Security group rules: 40
 * An ACL entry allowing openstack API access from your source IP address. This can be obtained by sending an email to <support@safespring.com>
-* As S3 bucket to redirecti the ignition file of the boot node (it is too big to be posted directly to the API). This can be obtained by sending an email to <support@safespring.com>
+* As S3 bucket to redirect the ignition file of the boot node (it is too big to be posted directly to the API). This can be obtained by sending an email to <support@safespring.com>
 * A liveDNS domain @ gandi.net
 * An API key for your gandi.net user
 
@@ -46,6 +46,14 @@ To approve CSRs for joining worker nodes (after control plane bootstrap):
 * `oc get nodes` (Workers should appear, first as NotReady, then become ready after a while)
 
 PS: Be patient. It takes up to an hour for OKD to assemble itself. But if there are no changes in cluster operator status for ca. 15 minutes, the installation might have stalled.
+
+### Worker sets
+
+Sets of worker nodes are now maintained as a terraform map which initially is
+injecteted to the terraform config (`cluster.tf`) via the default
+`settings.yml`.  Each set needs specificatione of setname (only used internaly
+in terraform) count, prefix and flavor. Please see comments in the generated
+default `settings.yml` for details.
 
 ---
 **NOTE**
