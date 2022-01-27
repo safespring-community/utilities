@@ -47,6 +47,8 @@ To approve CSRs for joining worker nodes (after control plane bootstrap):
 
 PS: Be patient. It takes up to an hour for OKD to assemble itself. But if there are no changes in cluster operator status for ca. 15 minutes, the installation might have stalled.
 
+PS2: If more than 24h passed and you wan't to re-use the instance previously deployed (and destroyed) you **must** remove the `installer` directory.
+
 ### Worker sets
 
 Sets of worker nodes are now maintained as a terraform map which initially is
