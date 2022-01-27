@@ -114,7 +114,7 @@
     # Can't use vars because: presedence
     - name: Change facts for boot
       set_fact:
-         okd_workers: 0
+        workersets: ""
 
     - name: Terraform template boot cluster
       template:
