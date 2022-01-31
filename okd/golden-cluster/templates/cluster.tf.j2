@@ -6,10 +6,10 @@ module okd_cluster {
   openstack_master_flavor_name = "{{ okd_master_flavor | default('lm.large.1d') }}"
 
   {% if okd_cluster_type == "worker-central-disk" %}
-  source = "github.com/safespring-community/terraform-modules.git//v2-okd-cluster-workers-on-central-disk-gandi-dns?ref=v0.7.45
+  source = "github.com/safespring-community/terraform-modules.git//v2-okd-cluster-workers-on-central-disk-gandi-dns?ref=v0.7.3
   worker_disk_size = "{{ okd_worker_disk_size | default(50) }}"
   {% else %}
-  source = "github.com/safespring-community/terraform-modules.git//v2-okd-cluster-local-disk-gandi-dns?ref=v0.7.5"
+  source = "github.com/safespring-community/terraform-modules.git//v2-okd-cluster-local-disk-gandi-dns?ref=v0.7.3"
   {% endif %}
 
   number_of_boot = "{{okd_boot }}"
