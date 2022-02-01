@@ -5,9 +5,6 @@ if [ $# -ne 2 ]
     exit 1
 fi
 
-#echo "This script ihas not been tested, use it as reference and do not run i directly. Exiting."
-#exit 1
-
 # Cleaning up OS-variables before reading source platform variables
 for x in `env|grep OS|cut -d= -f 1`; do unset $x; done
 # Read source platform variables
@@ -20,40 +17,33 @@ fi
 openstack volume list
 echo "Please provide volume name:"
 read volname
-SNAP_SIZE=`openstack volume show $volname|grep size|head -1|cut -d '|' -f 3|sed 's/^[ \t]*//;s/[ \t]*$//'`
+SNAP_SIZE=`openstack volume show -f json $volname|jq -r '.size'`
 
-#echo $SNAP_SIZE
-#echo "Creating migration volume from $volsnapname"
-#openstack volume create --snapshot $volsnapname --size $SNAP_SIZE $volsnapname.mig
-
-echo "Creating image from volume $volname"
+echo "Creating image from volume $volname..."
 openstack image create --volume  $volname $volname.tmp
-
-# TODO: Wait for operation to complete, by checing  state of "openstack image list" is not "SAVING" anymore
-#       Remove the migration volume
+# Wating for image to be ready
 status="null"
-
 while [[ $status != "active" ]]
 do
-    status=`openstack image show $volname.tmp|grep status|cut -d '|' -f 3|sed 's/^[ \t]*//;s/[ \t]*$//'`
-    echo "Image Status: $status"
     sleep 5
+    status=`openstack image show -f json $volname.tmp|jq -r '.status'`
+    echo "Wating to finish. Image Status: $status"
 done
 
-echo "Downloading image $volname.tmp" 
+echo "Downloading image $volname.tmp..." 
 openstack image save $volname.tmp > $volname.raw
-echo "Cleaning up image $volname.tmp from source platform"
+echo "Cleaning up image $volname.tmp from source platform..."
 openstack image delete $volname.tmp
 
 
-echo "Converting image to $volname.qcow2"
+echo "Converting image to $volname.qcow2..."
 qemu-img convert -f raw -O qcow2 $volname.raw $volname.qcow2
 if [ $? -eq 0 ] 
 then 
-      echo "Cleaning up temp raw file $volname.raw"
+      echo "Cleaning up temp raw file $volname.raw..."
       rm $volname.raw 
   else 
-        echo "Could not convert file" >&2
+        echo "ERROR! Could not convert file" >&2
         exit 1
 fi
 
@@ -63,15 +53,23 @@ for x in `env|grep OS|cut -d= -f 1`; do unset $x; done
 source $2
 
 if ! openstack token issue; then
-    echo "No contact with destination platform"
+    echo "ERROR! No contact with destination platform"
     exit 1
 fi
-echo "Uploading $volname.qcow2 to destination platform"
+echo "Uploading $volname.qcow2 to destination platform..."
 openstack image create --disk-format qcow2 --container-format bare --private --min-disk $SNAP_SIZE $volname.img < $volname.qcow2
 echo "Cleaning up temp qcow2 image"
 rm $volname.qcow2
-echo "Create volume from $volname.img"
-openstack image create --image $volname.img --size $SNAP_SIZE --type fast $volname
-echo "Cleaning up $volname.img"
+echo "Create volume from $volname.img..."
+openstack volume create --image $volname.img --size $SNAP_SIZE --type fast $volname
+
+status="null"
+while [[ $status != "available" ]]
+do
+    sleep 5
+    status=`openstack volume show -f json $volname|jq -r '.status'`
+    echo "Wating to finish. Volume Status: $status"
+done
+echo "Cleaning up $volname.img image..."
 openstack image delete $volname.img
-echo "Finished! You can now boot you server from the volume$volname in the new platform"
+echo "Finished! You can now boot you server from the volume $volname in the new platform."
