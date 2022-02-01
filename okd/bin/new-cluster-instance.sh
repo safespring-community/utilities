@@ -50,6 +50,9 @@ okd_fcos_image:
 # Only relevant when workers are on central disk
 # okd_worker_disk_size: 50
 
+# Anti affinity for master nodes. Possible values "anti-affinity" (for production) or soft-anti-affinity (default)
+# master_affinity: soft-anti-affinity
+
 # okd_masters: 3
 # okd_workers: 2
 

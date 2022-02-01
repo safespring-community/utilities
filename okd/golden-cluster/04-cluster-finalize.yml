@@ -5,6 +5,7 @@
   vars:
     installer_dir: installer
     okd_cluster_type: "" # Templating fails if this var is non existent. Due to if test in template
+    master_affinity: "soft-anti-affinity"
 
   pre_tasks:
     - include_vars: settings.yml
