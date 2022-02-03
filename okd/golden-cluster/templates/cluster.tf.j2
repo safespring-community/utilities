@@ -5,13 +5,7 @@ module okd_cluster {
   openstack_loadbalancer_flavor_name = "{{ okd_loadbalancer_flavor | default('m.small') }}"
   openstack_master_flavor_name = "{{ okd_master_flavor | default('lm.large.1d') }}"
   master_affinity = "{{master_affinity}}"
-
-  {% if okd_cluster_type == "worker-central-disk" %}
-  source = "github.com/safespring-community/terraform-modules.git//v2-okd-cluster-workers-on-central-disk-gandi-dns?ref=v0.8.2
-  worker_disk_size = "{{ okd_worker_disk_size | default(50) }}"
-  {% else %}
-  source = "github.com/safespring-community/terraform-modules.git//v2-okd-cluster-local-disk-gandi-dns?ref=v0.8.2"
-  {% endif %}
+  source = "github.com/safespring-community/terraform-modules.git//v2-okd-cluster-gandi-dns?ref=v0.9.0"
 
   number_of_boot = "{{okd_boot }}"
   number_of_masters = "{{ okd_masters | default(3) }}"
@@ -26,13 +20,13 @@ module okd_cluster {
       "{{ cidr }}"{% if not loop.last %},{% endif %}{{ "" }}
   {% endfor %}
   ]
-  
+
   allow_api_from_v4 = [
   {% for cidr in api_cidrs %}
       "{{ cidr }}"{% if not loop.last %},{% endif %}{{ "" }}
   {% endfor %}
   ]
-  
+
   allow_all_ports_from_v4 = [
   {% for cidr in all_ports_cidrs %}
       "{{ cidr }}"{% if not loop.last %},{% endif %}{{ "" }}
@@ -40,4 +34,3 @@ module okd_cluster {
   ]
   public_key_path = "{{ ssh_key_path }}"
 }
-
