@@ -34,21 +34,8 @@ okd_base_domain: $2
 
 okd_fcos_image: 
 
-# There is different cluster types using different module variations. Default is to have all nodes except
-# lb on local disk. Possible values: worker-central-disk
-# okd_cluster_type: "worker-central-disk"
-
 # okd_loadbalancer_flavor: "lm.small"
 # okd_master_flavor: "lm.large.1d"
-# okd_worker_flavor: "lm.medium.1d"
-
-# Type of cluster
-#  * local-disk for all nodes on local disk
-#  * worker-central-disk for workers on central disk (default disk size is 50G baut can be overriden with okd_worker_disk_size)
-
-# okd_cluster_type: "local-disk"
-# Only relevant when workers are on central disk
-# okd_worker_disk_size: 50
 
 # Anti affinity for master nodes. Possible values "anti-affinity" (for production) or soft-anti-affinity (default)
 # master_affinity: soft-anti-affinity
@@ -80,21 +67,25 @@ ssh_key_path: "~/.ssh/id_rsa.pub"
 # by editing cluster.tf (the rendered terraform config) or edit the variable here and
 # re-run 04-cluster-finalize.yml
 # In order to finalize the cluster setup the "first" set is necessary
-# Worker sets can be changed in any direction at any time to adapt the changing needs.
-# Just make sure it is in line with applications running (evacuate, cordon and delet nodes before scaling down.)
-# Please adapt flavors according to the choice of worekr type (local disk or central disk).
-# I.e. change to flavor not starting with "l" if choosing  okd_cluster_type: "worker-central-disk"
+# Worker sets can be added/removed any time to adapt the changing needs.
+# Just make sure it is in line with applications running (evacuate, cordon and delete nodes before scaling down.)
+# If flavor is with local disk (flavor name starts with "l") then disk_size is forced to 0
+# If flavor is without local disk (flavor name does not start with "l") then disk_size forced to minimum 50GB. If the
+# value for disk_size is higher then the specified value will be used.
+# This variable is consumed by the okd module on https://github.com/safespring-community/terraform-modules/blob/main/v2-okd-cluster-gandi-dns/variables.tf#L81
 workersets: |
   workersets = {
     "first" = {
-      prefix = "initial-worker"
-      flavor = "lm.medium.1d"
-      count  = 2
+      prefix    = "initial-worker"
+      flavor    = "lm.medium.1d"
+      count     = 2
+      disk_size = 0  # Will be forced to 0 anyways because of local disk flavor
     }
     #"second" = {
     #  prefix = "large-worker"
-    #  flavor = "lm.large.1d"
+    #  flavor = "m.large"
     #  count  = 2
+    #  disk_size  = 50  # Set higher than 50 to increase size. If lower than 50 it is forced to 50 anyway.
     #}
   }
 EOF
