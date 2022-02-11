@@ -30,7 +30,7 @@ do
     VOL_TYPE=`openstack volume show -f json $volname|jq -r '.type'`
 
     echo $(date -u) ": Creating image from volume $volname with size=$SNAP_SIZE and type=$VOL_TYPE..."
-    if ! openstack image create --volume  $volname $volname.tmp 2> /dev/null; then
+    if ! openstack image create --volume  "$volname" "$volname".tmp 2> /dev/null; then
         echo $(date -u) ": ERROR! No such volume or volume busy. Have you detached it from the instance?"
         exit 1
     fi
@@ -39,22 +39,22 @@ do
     while [[ $status != "active" ]]
     do
         sleep 5
-        status=`openstack image show -f json $volname.tmp|jq -r '.status'`
+        status=`openstack image show -f json "$volname".tmp|jq -r '.status'`
         echo $(date -u) ": Wating to finish. Image Status: $status"
     done
 
     echo $(date -u) ": Downloading image $volname.tmp..." 
-    openstack image save $volname.tmp > $volname.raw
+    openstack image save "$volname".tmp > "$volname".raw
     echo $(date -u) ": Cleaning up image $volname.tmp from source platform..."
-    openstack image delete $volname.tmp
+    openstack image delete "$volname".tmp
 
 
     echo $(date -u) ": Converting image to $volname.qcow2..."
-    qemu-img convert -f raw -O qcow2 $volname.raw $volname.qcow2
+    qemu-img convert -f raw -O qcow2 "$volname".raw "$volname".qcow2
     if [ $? -eq 0 ] 
     then 
         echo $(date -u) ": Cleaning up temp raw file $volname.raw..."
-        rm $volname.raw 
+        rm "$volname".raw
     else 
         echo $(date -u) ": ERROR! Could not convert file" >&2
         exit 1
@@ -66,14 +66,14 @@ for x in `env|grep OS|cut -d= -f 1`; do unset $x; done
 source $2
 
 echo $(date -u) ": Uploading $volname.qcow2 to destination platform..."
-if ! openstack image create --disk-format qcow2 --container-format bare --private --min-disk $SNAP_SIZE $volname.img < $volname.qcow2 2> /dev/null; then
+if ! openstack image create --disk-format qcow2 --container-format bare --private --min-disk "$SNAP_SIZE" "$volname".img < "$volname".qcow2 2> /dev/null; then
     echo $(date -u) ": ERROR! No contact with destination platform"
     exit 1
 fi
 echo $(date -u) ": Cleaning up temp qcow2 image"
-rm $volname.qcow2
+rm "$volname".qcow2
 echo $(date -u) ": Create volume from $volname.img..."
-openstack volume create --image $volname.img --size $SNAP_SIZE --type $VOL_TYPE $volname 2> /dev/null
+openstack volume create --image "$volname".img --size "$SNAP_SIZE" --type "$VOL_TYPE" "$volname" 2> /dev/null
 
 status="null"
 while [[ $status != "available" ]]
@@ -82,15 +82,15 @@ do
     status=`openstack volume show -f json $volname|jq -r '.status'`
     echo $(date -u) ": Wating to finish. Volume Status: $status"
     if [ "$status" = "error" ]; then
-        vol_id=`openstack volume show -f json $volname|jq -r '.id'`
+        vol_id=`openstack volume show -f json "$volname"|jq -r '.id'`
         echo $(date -u) ": ERROR! Could not create volumei with id $vol_id. Plz run the script again. If problem persists contact support@safespring.com with volume id and timestamp. Cleaning up..."
-        openstack volume delete $volname
-        openstack image delete $volname.img
+        openstack volume delete "$volname"
+        openstack image delete "$volname".img
         exit 1
     fi
 done
 echo $(date -u) ": Cleaning up $volname.img image..."
-openstack image delete $volname.img
+openstack image delete "$volname".img
 echo $(date -u) ": Finished! You can now use the volume $volname in the new platform."
 echo "Do you want to migrate another volume? (NO=0, YES=1)"
 read one_more
