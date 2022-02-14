@@ -5,7 +5,9 @@ module okd_cluster {
   openstack_loadbalancer_flavor_name = "{{ okd_loadbalancer_flavor | default('m.small') }}"
   openstack_master_flavor_name = "{{ okd_master_flavor | default('lm.large.1d') }}"
   master_affinity = "{{master_affinity}}"
-  source = "github.com/safespring-community/terraform-modules.git//v2-okd-cluster-gandi-dns?ref=v0.9.0"
+  lb_ssh_pubkey_path = "{{ssh_key_path}}"
+  lb_image_name = "ubuntu-20.04"
+  source = "github.com/safespring-community/terraform-modules.git//v2-okd-cluster-gandi-dns?ref=v0.10.0"
 
   number_of_boot = "{{okd_boot }}"
   number_of_masters = "{{ okd_masters | default(3) }}"
@@ -32,5 +34,4 @@ module okd_cluster {
       "{{ cidr }}"{% if not loop.last %},{% endif %}{{ "" }}
   {% endfor %}
   ]
-  public_key_path = "{{ ssh_key_path }}"
 }

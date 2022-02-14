@@ -33,7 +33,16 @@
             msg: "{{ _terraform_apply[item].split('\n') }}"
           with_items: [stdout, stderr]
           when: item in _terraform_apply
+    - meta: refresh_inventory
 
+- name: Include loadbalancer setup
+  import_playbook: lb.yml
+
+- name: Wait for install complete
+  hosts: localhost
+  vars:
+    installer_dir: installer
+  tasks:
     - name: Wait for API to be available
       wait_for:
         port: 6443

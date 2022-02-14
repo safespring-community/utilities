@@ -150,7 +150,17 @@
           with_items: [stdout, stderr]
           when: item in _terraform_apply_boot
       when: not bootstrap_complete
+    - meta: refresh_inventory
 
+
+- name: Include loadbalancer setup
+  import_playbook: lb.yml
+
+- name: Wait for bootstrap complete
+  hosts: localhost
+  vars:
+    installer_dir: installer
+  tasks:
     - block:
           # Bootstrap takes sometimes a long time. Wait for it twice.
         - name: openshift-install wait-for bootstrap-complete
