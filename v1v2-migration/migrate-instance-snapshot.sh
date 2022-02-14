@@ -24,13 +24,13 @@ echo $(date -u) ":Please provide image name:"
 read imgname
 MIN_DISK=`openstack image show -f json $imgname|jq -r '.min_disk'`
 echo $(date -u) ":Downloading image $imgname with min_disk=$MIN_DISK"
-openstack image save $imgname > $imgname.raw
+openstack image save "$imgname" > "$imgname".raw
 echo $(date -u) ":Converting image to $imgname.qcow2"
-qemu-img convert -f raw -O qcow2 $imgname.raw $imgname.qcow2
+qemu-img convert -f raw -O qcow2 "$imgname".raw "$imgname".qcow2
 if [ $? -eq 0 ] 
 then 
       echo $(date -u) ":Cleaning up temp raw file $imgname.raw"
-      rm $imgname.raw 
+      rm "$imgname".raw
   else 
         echo $(date -u) ":Could not convert file" >&2
         exit 1
@@ -42,9 +42,9 @@ for x in `env|grep OS|cut -d= -f 1`; do unset $x; done
 source $2
 
 echo $(date -u) ":Uploading $imgname.qcow2 to destination platform"
-if ! openstack image create --disk-format qcow2 --container-format bare --private --min-disk $MIN_DISK $imgname < $imgname.qcow2; then
+if ! openstack image create --disk-format qcow2 --container-format bare --private --min-disk "$MIN_DISK" "$imgname" < "$imgname".qcow2; then
     echo $(date -u) ":No contact with destination platform"
     exit 1
 fi
 echo $(date -u) ":Cleaning up temp qcow2 image"
-rm $imgname.qcow2
+rm "$imgname".qcow2
