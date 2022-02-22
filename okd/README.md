@@ -33,6 +33,7 @@ using the terraform module(s) in https://github.com/safespring-community/terrafo
   * This will copy all you need to a directory of you own choosing
 * `cd <directory>`
 * Run the ansible playbooks in order and follow the instructions at the end of each one of them
+  * The playbooks ( 03 and 04 ) must be run with option `-i ati` in order to include inventory for the loadbalancer node.
 
 To see the cluster bootstrap progress in another window:
 
