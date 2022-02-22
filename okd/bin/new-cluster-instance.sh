@@ -59,6 +59,10 @@ s3_filename: "{{okd_cluster_name}}-{{okd_base_domain}}.ign"
 # Make sure that aws s3 presign works on the bucket objekt.
 s3_endpoint_url: "https://minio-1.safedc.net:9091"
 
+# The public key to inject in all cluster nodes
+# make sure that the private key for it is added to your ssh-agent, otherwise the ansible setup of the loadbalncer node
+# will fail, thus the cluster bootstrap will also fail.
+
 ssh_key_path: "~/.ssh/id_rsa.pub"
 
 # This multiline variable contains the terraform code to define worker sets
