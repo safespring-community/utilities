@@ -43,6 +43,9 @@ okd_fcos_image:
 # okd_masters: 3
 # okd_workers: 2
 
+# Network to put master and worker nodes. LB must be on public. This is hardcoded.
+# network: default
+
 api_cidrs:
   - 0.0.0.0/0
 ssh_cidrs:
@@ -110,6 +113,7 @@ mkdir -p ${DIR}
 
 echo "Copying playbooks, settings and templates to your destination: ${DIR}/${CLUSTER_NAME}.${DOMAIN}"
 cp -r ${BASE_DIR}/golden-cluster  ${DIR}/${CLUSTER_NAME}.${DOMAIN}
+cp -r ${BASE_DIR}/../ati ${DIR}/${CLUSTER_NAME}.${DOMAIN}
 make_settings ${CLUSTER_NAME} ${DOMAIN} ${S3_BUCKET} > ${DIR}/${CLUSTER_NAME}.${DOMAIN}/settings.yml
 
 echo "Now cd to ${DIR}/${CLUSTER_NAME}.${DOMAIN}, change settings.yml to your needs run the playbooks in order"
