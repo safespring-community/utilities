@@ -84,13 +84,13 @@ workersets: |
   workersets = {
     "first" = {
       prefix    = "initial-worker"
-      flavor    = "lm.medium.1d"
+      flavor    = "l2.c4r8.100"
       count     = 2
       disk_size = 0  # Will be forced to 0 anyways because of local disk flavor
     }
     #"second" = {
     #  prefix = "large-worker"
-    #  flavor = "m.large"
+    #  flavor = "b2.c4r16"
     #  count  = 2
     #  disk_size  = 50  # Set higher than 50 to increase size. If lower than 50 it is forced to 50 anyway.
     #}

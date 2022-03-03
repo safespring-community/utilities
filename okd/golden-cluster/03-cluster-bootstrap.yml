@@ -6,6 +6,7 @@
     installer_dir: installer
     okd_cluster_type: "" # Templating fails if this var is non existent. Due to if test in template.
     master_affinity: "soft-anti-affinity"
+    network: "default"
 
   pre_tasks:
     - include_vars: settings.yml
@@ -124,7 +125,7 @@
       vars:
         okd_boot: 1
         ignition_url: "{{ _presign_url.stdout }}"
-        network_name: public
+        network_name: "{{network}}"
         ssh_cidrs: []
         all_ports_cidrs: []
         api_cidrs: []
