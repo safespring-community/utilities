@@ -27,7 +27,7 @@ okd_base_domain: $2
 # If it does not work well, try to step back using specific releases from:
 # https://github.com/openshift/okd/releases/
 #
-# okd_version:
+# okd_release:
 
 # You can skip specifyng okd_fcos_image, it  will be filled in later by running image-installer.yml playbook
 # Don't uncomment it though.
