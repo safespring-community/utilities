@@ -15,16 +15,16 @@ for x in `env|grep OS|cut -d= -f 1`; do unset $x; done
 # Read source platform variables
 source $1
 
-if ! openstack image list; then
+if ! openstack --insecure image list; then
     echo $(date -u) ":No contact with source platform"
     exit 1
 fi
 
 echo $(date -u) ":Please provide image name:"
 read imgname
-MIN_DISK=`openstack image show -f json $imgname|jq -r '.min_disk'`
+MIN_DISK=`openstack --insecure image show -f json $imgname|jq -r '.min_disk'`
 echo $(date -u) ":Downloading image $imgname with min_disk=$MIN_DISK"
-openstack image save "$imgname" > "$imgname".raw
+openstack --insecure image save "$imgname" > "$imgname".raw
 echo $(date -u) ":Converting image to $imgname.qcow2"
 qemu-img convert -f raw -O qcow2 "$imgname".raw "$imgname".qcow2
 if [ $? -eq 0 ] 
