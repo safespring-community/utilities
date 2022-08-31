@@ -14,6 +14,9 @@
       wait_for_connection:
         timeout: 900
 
+    - name: Wait for any possibly running unattended upgrade to finish
+      raw: systemd-run --property="After=apt-daily.service apt-daily-upgrade.service" --wait /bin/true
+
     - name: Install haproxy
       apt:
         name: "haproxy"
