@@ -66,5 +66,14 @@ installer directory when re-installing a cluster. The certificates in the
 installer directory expire after 24 hours. The playbook will create a new installer directory if it
 does not exist: thus just remove the old one after `terraform destroy`.
 
+**Known issues**
+
+Ansible requires the python package "openstacksdk" for operating on openstack.
+After version 0.61.0 we have this problem:
+https://storyboard.openstack.org/#!/story/2008740. It can be worked around by
+
+```
+$ pip install openstacksdk==0.61.0
+```
 
 ---
