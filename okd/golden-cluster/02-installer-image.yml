@@ -81,12 +81,12 @@
     
     
     - name: Upload fedora-coreos {{ fcos_release }}
-      os_image:
+      openstack.cloud.image:
         filename: "{{ ansible_env.PWD }}/{{ fcos_file_qcow2 }}"
         name: "fedora-coreos-{{ fcos_release }}-openstack.x86_64"
         disk_format: "{{ (to_ceph | default(false)) | ternary('raw', 'qcow2') }}"
         is_public: "{{ is_public | default(false) }}"
-        #checksum: "{{ (to_ceph | default(false)) | ternary(omit, fcos_qcow2_sha256) }}"
+        checksum: "{{ (to_ceph | default(false)) | ternary(omit, fcos_file_xz_sha256) }}"
         properties:
           os_distro: fedora-coreos
           hw_machine_type: pc
