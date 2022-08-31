@@ -100,7 +100,7 @@ EOF
 
 if [[ -z $3 ]]
 then
-  echo "Usage: $0 cluster-name gandi-domain-name S3-bucket base-directory"
+  echo "Usage: $0 cluster-name gandi-domain-name base-directory"
   exit 1
 fi
 
