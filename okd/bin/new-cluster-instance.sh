@@ -106,8 +106,7 @@ fi
 
 CLUSTER_NAME=$1
 DOMAIN=$2
-S3_BUCKET=$3
-DIR=$4
+DIR=$3
 
 mkdir -p ${DIR}
 
