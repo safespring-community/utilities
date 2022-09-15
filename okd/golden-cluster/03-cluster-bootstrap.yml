@@ -7,6 +7,8 @@
     okd_cluster_type: "" # Templating fails if this var is non existent. Due to if test in template.
     master_affinity: "soft-anti-affinity"
     network: "default"
+    s3_bucket: "ignitionboot"
+    s3_filename: "{{okd_cluster_name}}-{{okd_base_domain}}.ign"
 
   pre_tasks:
     - include_vars: settings.yml
@@ -21,6 +23,24 @@
         - "{{ installer_dir }}/master.ign"
         - "{{ installer_dir }}/worker.ign"
       register: _cluster_progress
+
+    - name: Authenticate to the cloud and retrieve the service catalog
+      openstack.cloud.auth:
+
+    - name: Set fact, s3 endpoint
+      ansible.builtin.set_fact:
+        s3_endpoint_url: "{{ item }}"
+      loop: "{{ service_catalog|community.general.json_query('[?type==`s3`].endpoints[0].url') }}"
+
+    - name: Get s3 access key
+      ansible.builtin.command:
+        "openstack ec2 credential list -c Access  -f value"
+      register: s3_access_key_id
+
+    - name: Get s3 secret key
+      ansible.builtin.command:
+        "openstack ec2 credential list -c Secret  -f value"
+      register: s3_secret_key_id
 
     - name: check for api
       uri:
@@ -92,11 +112,20 @@
       vars:
         ignitions_exist: "[?item==`{{ installer_dir }}/bootstrap.ign` || item==`{{ installer_dir }}/master.ign` || item==`{{ installer_dir }}/worker.ign`].stat.exists"
 
-    #- fail: 
-    - name: upload bootstrap.ign
+    - name: Create ignition s3 bucket if it does not exist
       aws_s3:
-        aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID }}"
-        aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY }}"
+        aws_access_key: "{{ s3_access_key_id.stdout }}"
+        aws_secret_key: "{{ s3_secret_key_id.stdout }}"
+        s3_url: "{{ s3_endpoint_url }}"
+        bucket: "{{ s3_bucket }}"
+        mode: create
+        encrypt: false
+      register: _s3_bucket_create
+
+    - name: Upload bootstrap.ign to ignition s3 bucket
+      aws_s3:
+        aws_access_key: "{{ s3_access_key_id.stdout }}"
+        aws_secret_key: "{{ s3_secret_key_id.stdout }}"
         s3_url: "{{ s3_endpoint_url }}"
         bucket: "{{ s3_bucket }}"
         src: "{{ ansible_env.PWD }}/{{ installer_dir }}/bootstrap.ign"
@@ -112,6 +141,9 @@
       # We don't really mind this change do we?
       #when: not bootstrap_complete
       register: _presign_url
+      environment:
+        AWS_ACCESS_KEY_ID: "{{ s3_access_key_id.stdout }}"
+        AWS_SECRET_ACCESS_KEY: "{{ s3_secret_key_id.stdout }}"
 
     # Can't use vars because: presedence
     - name: Change facts for boot

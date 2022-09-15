@@ -51,18 +51,6 @@ api_cidrs:
 ssh_cidrs:
   - 0.0.0.0/0
 
-# The size of ignition for boot node is too big to send directly to the Nova API
-# so it needs to be uploaded to bucket and pulle from ther instead.
-# You must export AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
-# and the bucket name must exist
-s3_bucket: "$3"
-s3_filename: "{{okd_cluster_name}}-{{okd_base_domain}}.ign"
-
-# Change endpoint url if you s3 bucket resides elsewhere
-# Make sure that aws s3 presign works on the bucket objekt.
-s3_endpoint_url: "https://minio-1.safedc.net:9091"
-
-# The public key to inject in all cluster nodes
 # make sure that the private key for it is added to your ssh-agent, otherwise the ansible setup of the loadbalncer node
 # will fail, thus the cluster bootstrap will also fail.
 
