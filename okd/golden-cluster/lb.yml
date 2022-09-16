@@ -17,11 +17,16 @@
     - name: Wait for any possibly running unattended upgrade to finish
       raw: systemd-run --property="After=apt-daily.service apt-daily-upgrade.service" --wait /bin/true
 
+    - name: Upgrade packages
+      apt:
+        upgrade: yes
+
     - name: Install haproxy
       apt:
         name: "haproxy"
         state:  latest
         update_cache: yes
+
     - name: "Dynamic haproxy config based on inventory from terraform state"
       template:
         src: lb.config.j2
