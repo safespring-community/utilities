@@ -5,31 +5,26 @@ using the terraform module(s) in https://github.com/safespring-community/terrafo
 
 ### Prerequisites
 
-* A project in one of Safespring's v2 sites with minimum resources:
-  * Memory: 60GB
-  * VCPUs: 16
-  * Security groups: 15
-  * Security group rules: 40
+* A project in one of Safespring's v2 sites with "OKD-minimal" resource profile:
 * An ACL entry allowing openstack API access from your source IP address. This can be obtained by sending an email to <support@safespring.com>
-* As S3 bucket to redirect the ignition file of the boot node (it is too big to be posted directly to the API). This can be obtained by sending an email to <support@safespring.com>
+  * Or even better: use a jumphost (which is already whitelisted). See https://www.safespring.com/blogg/2022/2022-08-using-jumphost-for-safespring-apis/
 * A liveDNS domain @ gandi.net
 * An API key for your gandi.net user
 
 ### Creating an OKD cluster instance
 
-* Export openstack environment variables
+* Export openstack environment variables as you would if using the openstack cli
   * `OS_PASSWORD=`
   * `OS_USERNAME=`
-  * `OS_AUTH_URL=https://v2.api.osl1.safedc.net:5000/v3`
+  * `OS_AUTH_URL=`
   * `OS_IDENTITY_API_VERSION=3`
   * `OS_PROJECT_DOMAIN_NAME=`
   * `OS_PROJECT_NAME=`
-  * `OS_REGION_NAME=<sto1 or osl1>`
   * `OS_USER_DOMAIN_NAME=`
+* Alternatively use openstack cli to create application credentials and then use that to authenticate the installer.
+  * See docs on https://docs.safespring.com/new/app-creds/
 * Export `GANDI_KEY`
-* Export `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
-  * For uploading ignition file to s3 bucket
-* Run `./bin/new-cluster-instance.sh <cluster-name> <gandi-livedns-domain> <S3-bucke-name> <directory>`
+* Run `./bin/new-cluster-instance.sh <cluster-name> <gandi-livedns-domain> <directory>`
   * This will copy all you need to a directory of you own choosing
 * `cd <directory>`
 * Run the ansible playbooks in order and follow the instructions at the end of each one of them
