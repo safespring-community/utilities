@@ -33,11 +33,11 @@ using the terraform module(s) in https://github.com/safespring-community/terrafo
 * `cd <directory>`
 * Run the ansible playbooks in order and follow the instructions at the end of each one of them
   * The playbooks ( 03 and 04 ) must be run with option `-i ati` in order to include inventory for the loadbalancer node.
-  ```console
-  ansible-playbook 01-environment.yml
-  ansible-playbook 02-installer-image.yml
-  ansible-playbook -i ati 03-cluster-bootstrap.yml
-  ansible-playbook -i ati 04-cluster-finalize.yml
+```console
+$ ansible-playbook 01-environment.yml
+$ ansible-playbook 02-installer-image.yml
+$ ansible-playbook -i ati 03-cluster-bootstrap.yml
+$ ansible-playbook -i ati 04-cluster-finalize.yml
 ```
 
 To see the cluster bootstrap progress in another window:
