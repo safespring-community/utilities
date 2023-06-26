@@ -58,4 +58,4 @@
             * Include $HOME/.local/bin (first) in yor PATH
 
           Then continue here;
-            * ansible-playbook 02-image-installer.yml
+            * ansible-playbook 02-installer-image.yml
