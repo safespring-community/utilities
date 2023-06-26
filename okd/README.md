@@ -55,6 +55,10 @@ PS: Be patient. It takes up to an hour for OKD to assemble itself. But if there 
 
 PS2: If more than 24h passed and you wan't to re-use the instance previously deployed (and destroyed) you **must** remove the `installer` directory.
 
+### Default kubeadmin credentials
+
+Default kubeadmin credentials can be found in file installer/auth/kubeadmin-password
+
 ### Worker sets
 
 Sets of worker nodes are now maintained as a terraform map which initially is
