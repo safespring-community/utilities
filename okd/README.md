@@ -13,7 +13,7 @@ using the terraform module(s) in https://github.com/safespring-community/terrafo
 
 ### Creating an OKD cluster instance
 
-* Export openstack environment variables as you would if using the openstack cli
+* Export openstack environment variables as you would if using the openstack cli (an rcfile containing the correct values can be downloaded from the openstack web gui):
   * `OS_PASSWORD=`
   * `OS_USERNAME=`
   * `OS_AUTH_URL=`
