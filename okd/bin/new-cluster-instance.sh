@@ -101,7 +101,7 @@ mkdir -p ${DIR}
 echo "Copying playbooks, settings and templates to your destination: ${DIR}/${CLUSTER_NAME}.${DOMAIN}"
 cp -r ${BASE_DIR}/golden-cluster  ${DIR}/${CLUSTER_NAME}.${DOMAIN}
 cp -r ${BASE_DIR}/../ati ${DIR}/${CLUSTER_NAME}.${DOMAIN}
-make_settings ${CLUSTER_NAME} ${DOMAIN} ${S3_BUCKET} > ${DIR}/${CLUSTER_NAME}.${DOMAIN}/settings.yml
+make_settings ${CLUSTER_NAME} ${DOMAIN} > ${DIR}/${CLUSTER_NAME}.${DOMAIN}/settings.yml
 
 echo "Now cd to ${DIR}/${CLUSTER_NAME}.${DOMAIN}, change settings.yml to your needs run the playbooks in order"
 echo "Each playbook must complete successfully before the next is run"
