@@ -17,10 +17,6 @@
     - name: Wait for any possibly running unattended upgrade to finish
       raw: systemd-run --property="After=apt-daily.service apt-daily-upgrade.service" --wait /bin/true
 
-    - name: Upgrade packages
-      apt:
-        upgrade: yes
-
     - name: Install haproxy
       apt:
         name: "haproxy"

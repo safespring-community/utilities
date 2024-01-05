@@ -51,6 +51,27 @@
       register: _cluster_api
 
     - set_fact:
+        install_config_template: install-config.yaml.j2
+      when:
+        enterprise: False
+
+    - set_fact:
+        install_config_template: install-config-ocp.yaml.j2
+      when:
+        enterprise: True
+
+    - set_fact:
+        openshift_install_cmd: openshift-install
+      when:
+        enterprise: False
+
+    - set_fact:
+        openshift_install_cmd: "{{ ansible_env.PWD }}/bin/openshift-install"
+      when:
+        enterprise: True
+
+
+    - set_fact:
         bootstrap_complete: "{{ (_cluster_api.status == 200) | ternary(true, false) }}"
 
     - name: create directory for installer
@@ -61,7 +82,7 @@
   tasks:
     - name: create install-config.yaml
       template:
-        src: install-config.yaml.j2
+        src: "{{install_config_template}}"
         dest: "{{ ansible_env.PWD }}/{{ installer_dir }}/install-config.yaml"
       register: install_config_yaml
       when:
@@ -75,7 +96,7 @@
 
     - block:
         - name: openshift-install create manifests
-          command: openshift-install --dir={{ installer_dir }}/ create manifests
+          command: "{{openshift_install_cmd}} --dir={{ installer_dir }}/ create manifests"
           args:
             creates: "{{ ansible_env.PWD }}/{{ installer_dir }}/manifests/cluster-scheduler-02-config.yml"
           register: _openshift_install_create_manifests
@@ -101,7 +122,7 @@
 
     - block:
         - name: openshift-install create ignition-configs
-          command: openshift-install --dir={{ installer_dir }} create ignition-configs
+          command: "{{openshift_install_cmd}} --dir={{ installer_dir }} create ignition-configs"
           register: _openshift_install_create_ignition_configs
       always:
         - debug:
@@ -197,13 +218,15 @@
     - block:
           # Bootstrap takes sometimes a long time. Wait for it twice.
         - name: openshift-install wait-for bootstrap-complete
-          command: openshift-install --dir={{ installer_dir }}/ wait-for bootstrap-complete
+          command: "{{openshift_install_cmd}} --dir={{ installer_dir }}/ wait-for bootstrap-complete"
           ignore_errors: yes
           register: _wait_for_bootstrap
 
-        - name: openshift-install wait-for bootstrap-complete , again
-          command: openshift-install --dir={{ installer_dir }}/ wait-for bootstrap-complete
+        - name: openshift-install wait-for bootstrap-complete, again
+          command: "{{openshift_install_cmd}} --dir={{ installer_dir }}/ wait-for bootstrap-complete"
+          ignore_errors: yes
           register: _wait_for_bootstrap
+
       always:
         - debug:
             msg: "{{ _wait_for_bootstrap[item].split('\n') }}"
