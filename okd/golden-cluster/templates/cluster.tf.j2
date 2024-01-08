@@ -1,6 +1,10 @@
 module okd_cluster {
   cluster_name = "{{ okd_cluster_name }}"
+  {% if enterprise == True %}
+  openstack_base_image_name = "{{ rhcos_image }}"
+  {% else %}
   openstack_base_image_name = "{{ okd_fcos_image }}"
+  {% endif %}
   domain_name = "{{ okd_base_domain }}"
   openstack_loadbalancer_flavor_name = "{{ okd_loadbalancer_flavor | default('b2.c1r4') }}"
   openstack_master_flavor_name = "{{ okd_master_flavor | default('l2.c8r16.500') }}"

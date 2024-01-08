@@ -34,6 +34,11 @@ okd_base_domain: $2
 
 okd_fcos_image: 
 
+# Redhat Openshift enterprise (OCP)
+enterprise: False
+rhcos_image: 
+pull_secret:
+
 # okd_loadbalancer_flavor: "lm.small"
 # okd_master_flavor: "lm.large.1d"
 

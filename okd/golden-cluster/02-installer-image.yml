@@ -1,98 +1,188 @@
 ---
 # If you set a specifice okd version, that will be used. If not the automation will
 # try to determine tha latest through the okd ci api
+# It is not possible to get the OCP tools in using the CI release image like okd, so
+# they must be downloaded as tarballs via https (oopenshift mirror)
+# For OCP installer always use latest stable version and "documents" it by updating settings.yml
+# FIXME: Make it possible to install specific version by entering it in settings up front ??? (maybe not necessary)
 
 - name: update openshift client/installer and fedora-coreos image
   hosts: localhost
   vars:
     platform: openstack
     okd_ci_base_url: https://origin-release.apps.ci.l2s4.p1.openshiftapps.com
+    ocp_download_prefix: https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/stable
 
   pre_tasks:
     - include_vars: settings.yml
 
   tasks:
     - block:
-        - name: query origin-release api for latest 4-stable version
-          uri:
-            url: "{{okd_ci_base_url}}/api/v1/releasestream/4-stable/latest"
-            return_content: true
-          register: _latest
-        - name: set_fact okd_release
-          set_fact:
-            okd_release: "{{ _latest.json.name }}"
-      when: okd_release is not defined
+      - block:
+          - name: query origin-release api for latest 4-stable version
+            uri:
+              url: "{{okd_ci_base_url}}/api/v1/releasestream/4-stable/latest"
+              return_content: true
+            register: _latest
+          - name: set_fact okd_release
+            set_fact:
+              okd_release: "{{ _latest.json.name }}"
+        when: okd_release is not defined and enterprise == False
+      - block:
+          - name: query origin-release api for latest 4-stable version
+            uri:
+              url: "{{okd_ci_base_url}}/api/v1/releasestream/4-stable/latest"
+              return_content: true
+            register: _latest
+          - name: set_fact okd_release
+            set_fact:
+              okd_release: "{{ _latest.json.name }}"
+        when: okd_release is not defined and enterprise == True
 
-    - name: Get openshift client/installer for {{ okd_release }}
-      command: "oc adm release extract --tools {{ okd_repo | default('quay.io/openshift/okd') }}:{{ okd_release }}"
-      args:
-        creates: openshift-client-linux-{{ okd_release }}.tar.gz
+      - name: Get openshift client/installer for {{ okd_release }}
+        command: "oc adm release extract --tools {{ okd_repo | default('quay.io/openshift/okd') }}:{{ okd_release }}"
+        args:
+          creates: openshift-client-linux-{{ okd_release }}.tar.gz
 
-    - name: Update openshift client/installer to {{ okd_release }}
-      unarchive:
-        src: "{{ item }}"
-        dest: "{{ ansible_env.HOME }}/.local/bin"
-        exclude:
-          - README.md
-      with_items:
-        - openshift-client-linux-{{ okd_release }}.tar.gz
-        - openshift-install-linux-{{ okd_release }}.tar.gz
+      - name: Update openshift client/installer to {{ okd_release }}
+        unarchive:
+          src: "{{ item }}"
+          dest: "{{ ansible_env.HOME }}/.local/bin"
+          exclude:
+            - README.md
+        with_items:
+          - openshift-client-linux-{{ okd_release }}.tar.gz
+          - openshift-install-linux-{{ okd_release }}.tar.gz
 
-    - name: Get fcos meta json string from installer
-      shell: openshift-install coreos print-stream-json|jq '.architectures.x86_64.artifacts.openstack.formats."qcow2.xz".disk'
-      register: _fcos_meta_string
+      - name: Get fcos meta json string from installer
+        shell: openshift-install coreos print-stream-json|jq '.architectures.x86_64.artifacts.openstack.formats."qcow2.xz".disk'
+        register: _fcos_meta_string
 
-    - name: Set fact for fcos meta
-      set_fact:
-        _fcos_meta: "{{ _fcos_meta_string.stdout |from_json }}"
+      - name: Set fact for fcos meta
+        set_fact:
+          _fcos_meta: "{{ _fcos_meta_string.stdout |from_json }}"
 
-    - name: Set fcos release from installer
-      shell: openshift-install coreos print-stream-json|jq -r '.architectures.x86_64.artifacts.openstack.release'
-      register: _fcos_release
+      - name: Set fcos release from installer
+        shell: openshift-install coreos print-stream-json|jq -r '.architectures.x86_64.artifacts.openstack.release'
+        register: _fcos_release
 
-    - name: Set fact for fcos release
-      set_fact:
-        fcos_release: "{{ _fcos_release.stdout }}"
+      - name: Set fact for fcos release
+        set_fact:
+          fcos_release: "{{ _fcos_release.stdout }}"
 
 
-    - name: set facts for fcos {{ _fcos_release }} meta
-      set_fact:
-        fcos_file_xz_sha256: "{{ _fcos_meta.sha256}}"
-        fcos_file_location: "{{ _fcos_meta.location}}"
-        fcos_file_xz: "fedora-coreos-{{_fcos_release.stdout }}-openstack.x86_64.qcow2.xz"
-        fcos_file_qcow2: "fedora-coreos-{{ fcos_release }}-openstack.x86_64.qcow2"
-    
-    - name: check for decompressed {{ fcos_file_qcow2 }}
-      stat:
-        path: "{{ ansible_env.PWD }}/{{ fcos_file_qcow2 }}"
-      register: _decompressed
-    
-    - name: Download {{ fcos_file_xz }}
-      get_url:
-        url: " {{fcos_file_location }}"
-        dest: "{{ ansible_env.PWD }}/{{ fcos_file_xz }}"
-        checksum: "sha256:{{ fcos_file_xz_sha256 }}"
-      when: _decompressed.stat.exists == false
-    
-    - name: Decompress {{ fcos_file_xz }} to {{ fcos_file_qcow2 }}
-      command: "xz --decompress {{ ansible_env.PWD }}/{{ fcos_file_xz }}"
-      args:
-        creates: "{{ ansible_env.PWD }}/{{ fcos_file_qcow2 }}"
-    
-    
-    - name: Upload fedora-coreos {{ fcos_release }}
-      openstack.cloud.image:
-        filename: "{{ ansible_env.PWD }}/{{ fcos_file_qcow2 }}"
-        name: "fedora-coreos-{{ fcos_release }}-openstack.x86_64"
-        disk_format: "{{ (to_ceph | default(false)) | ternary('raw', 'qcow2') }}"
-        is_public: "{{ is_public | default(false) }}"
-        checksum: "{{ (to_ceph | default(false)) | ternary(omit, fcos_file_xz_sha256) }}"
-        properties:
-          os_distro: fedora-coreos
-          hw_machine_type: pc
+      - name: set facts for fcos {{ _fcos_release }} meta
+        set_fact:
+          fcos_file_xz_sha256: "{{ _fcos_meta.sha256}}"
+          fcos_file_location: "{{ _fcos_meta.location}}"
+          fcos_file_xz: "fedora-coreos-{{_fcos_release.stdout }}-openstack.x86_64.qcow2.xz"
+          fcos_file_qcow2: "fedora-coreos-{{ fcos_release }}-openstack.x86_64.qcow2"
 
-    - name: Update fcos_image in settings.yml
-      replace:
-        path: settings.yml
-        regexp: "^okd_fcos_image: .*$"
-        replace: "okd_fcos_image: fedora-coreos-{{ fcos_release }}-openstack.x86_64"
+      - name: check for decompressed {{ fcos_file_qcow2 }}
+        stat:
+          path: "{{ ansible_env.PWD }}/{{ fcos_file_qcow2 }}"
+        register: _decompressed
+
+      - name: Download {{ fcos_file_xz }}
+        get_url:
+          url: " {{fcos_file_location }}"
+          dest: "{{ ansible_env.PWD }}/{{ fcos_file_xz }}"
+          checksum: "sha256:{{ fcos_file_xz_sha256 }}"
+        when: _decompressed.stat.exists == false
+
+      - name: Decompress {{ fcos_file_xz }} to {{ fcos_file_qcow2 }}
+        command: "xz --decompress {{ ansible_env.PWD }}/{{ fcos_file_xz }}"
+        args:
+          creates: "{{ ansible_env.PWD }}/{{ fcos_file_qcow2 }}"
+
+
+      - name: Upload fedora-coreos {{ fcos_release }}
+        openstack.cloud.image:
+          filename: "{{ ansible_env.PWD }}/{{ fcos_file_qcow2 }}"
+          name: "fedora-coreos-{{ fcos_release }}-openstack.x86_64"
+          disk_format: "{{ (to_ceph | default(false)) | ternary('raw', 'qcow2') }}"
+          is_public: "{{ is_public | default(false) }}"
+          checksum: "{{ (to_ceph | default(false)) | ternary(omit, fcos_file_xz_sha256) }}"
+          properties:
+            os_distro: fedora-coreos
+            hw_machine_type: pc
+
+      - name: Update fcos_image in settings.yml
+        replace:
+          path: settings.yml
+          regexp: "^okd_fcos_image: .*$"
+          replace: "okd_fcos_image: fedora-coreos-{{ fcos_release }}-openstack.x86_64"
+      when: enterprise == False
+
+    - block:
+      - name: Create folders for image and tools
+        ansible.builtin.file:
+          path: "{{ ansible_env.PWD }}/{{item}}"
+          state: directory
+          mode: '0755'
+        loop:
+          - 'folders/image'
+          - 'folders/tools'
+          - 'bin'
+
+      - name: Download the tools for managing and installing clusters
+        ansible.builtin.get_url:
+          url: "{{ocp_download_prefix}}/{{ item }}"
+          dest: "{{ ansible_env.PWD }}/folders/tools"
+          mode: '0755'
+        loop:
+          - openshift-client-linux.tar.gz
+          - openshift-install-linux.tar.gz
+
+      - name: Decompress the tools-archives and store in the ./bin folder
+        ansible.builtin.unarchive:
+          src: "{{ ansible_env.PWD }}/folders/tools/{{ item }}"
+          dest: "{{ ansible_env.PWD }}/bin/"
+        loop:
+          - openshift-client-linux.tar.gz
+          - openshift-install-linux.tar.gz
+
+      - name: Get rhcos meta json string from installer
+        ansible.builtin.shell: "{{ ansible_env.PWD }}/bin/openshift-install coreos print-stream-json | jq '.architectures.x86_64.artifacts.openstack.formats.\"qcow2.gz\"'"
+        register: _rhcos_meta_string
+        changed_when: true
+
+      - name: Set fact for rhcos meta
+        ansible.builtin.set_fact:
+          _rhcos_meta: "{{ _rhcos_meta_string.stdout | from_json }}"
+
+      - name: Download the image file
+        ansible.builtin.get_url:
+          url: "{{ _rhcos_meta.disk.location }}"
+          dest: "{{ ansible_env.PWD }}/folders/image/"
+          checksum: sha256:{{ _rhcos_meta.disk.sha256 }}
+          mode: '0755'
+
+      - name: Getting the image's filename
+        ansible.builtin.set_fact:
+          rhcos_image_name: "{{ _rhcos_meta.disk.location | regex_search('/x86_64/(.*).gz$', '\\1') | first }}"
+          rhcos_compressed_image_name: "{{ _rhcos_meta.disk.location | regex_search('/x86_64/(.*)$', '\\1') | first }}"
+
+      - name: Decompress rhcos_compressed_image_name to rhcos_image_name
+        ansible.builtin.command: gunzip {{ ansible_env.PWD }}/folders/image/{{ rhcos_compressed_image_name }}
+        changed_when: true
+
+      - name: Getting the image's uncompressed checksum
+        ansible.builtin.set_fact:
+          checksum: "{{ _rhcos_meta['disk']['uncompressed-sha256']}}"
+
+      - name: Upload the the base RHCOS image
+        openstack.cloud.image:
+          filename: "{{ ansible_env.PWD }}/folders/image/{{rhcos_image_name}}"
+          name: "{{rhcos_image_name | regex_search('rhcos.*x86_64')}}"
+          container_format: bare
+          disk_format: qcow2
+          is_public: false
+          checksum: "{{ checksum }}"
+
+      - name: Update rhcos_image in settings.yml
+        replace:
+          path: settings.yml
+          regexp: "^rhcos_image: .*$"
+          replace: "rhcos_image: {{rhcos_image_name | regex_search('rhcos.*x86_64')}}"
+      when: enterprise == True
