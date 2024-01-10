@@ -53,22 +53,19 @@
     - set_fact:
         install_config_template: install-config.yaml.j2
       when:
-        enterprise: False
+        enterprise == False
 
     - set_fact:
         install_config_template: install-config-ocp.yaml.j2
-      when:
-        enterprise: True
+      when: enterprise == True
 
     - set_fact:
         openshift_install_cmd: openshift-install
-      when:
-        enterprise: False
+      when: enterprise == False
 
     - set_fact:
         openshift_install_cmd: "{{ ansible_env.PWD }}/bin/openshift-install"
-      when:
-        enterprise: True
+      when: enterprise ==True
 
 
     - set_fact:
