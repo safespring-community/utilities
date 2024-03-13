@@ -1,219 +1,280 @@
-# Cinder CSI on okd
 
-Here is a recipe for one way to enable persistent volumes on okd running in
-openstack. This approach uses application credentials to enable an okd-cluster
-to automatically provision and attach persistent volumes (PVs) to pods using
-the official Openstack Cinder container storage interface (CSI) from the
-Kubernetes cloud provider for openstack.
+# Cinder CSI volume provisioner
 
-First create a new project/namespace with an empty node selector in order to
-let the daemonset of Cinder CSI run on all cluster nodes including master
-nodes.
+This guide is designed to help you effortlessly integrate the Cinder CSI Volume Provisioner into your OKD or OpenShift cluster. This guide is especially valuable for those who have configured their cluster with the platform option set to "none" and, as a result, are missing the OpenStack Cinder CSI Driver Operator. It's designed to streamline the process, making the integration seamless and hassle-free.
 
-```
-$ oc adm new-project csi --node-selector=""
-$ oc project csi
-```
+Moreover, this guide is not exclusive to OpenShift or OKD environments; it can be easily adapted for use in vanilla Kubernetes setups with a simple modification. A key highlight for OKD and OpenShift users is the inclusion of Security Context Constraints (SCC) cluster role bindings in the Helm chart's templates directory. This critical feature enables the Cinder CSI pods to run with privileged access, aligning them with OpenShift's security practices and ensuring their optimal functionality within your cluster's security framework.
 
-The service-accounts running the node-daemonset and the controller-deployment
-needs higher privileges than Openshift allows by default.  To allow these
-services to run, the following commands will add the neceassary Security
-Context Constraints (SCCs). SCCs are openshift specific and implements
-restriciton for what pods are allowed to do in a simililar way like Pod
-Security Policies (PSPs). It is possible to use PSPs in Openshift, however it
-is easier to re-use premade SCCs than designing and PSPs with similar effect
-and then use those. However, in some situations it might be necessary to
-tighten security even closer to exactly what the cinder CSI needs and then it
-it possible to create your own SCCs and/or PSPs implementing for implementing
-that.
+Throughout this guide, we will take you step by step through the installation process, providing clear instructions and helpful tips to ensure a successful integration. Whether you're new to OpenShift or an experienced administrator, this guide aims to provide you with all the necessary information to enhance your cluster's storage capabilities with the Cinder CSI Volume Provisioner.
 
-```
-$ oc adm policy add-scc-to-user hostaccess -z csi-cinder-controller-sa
-$ oc adm policy add-scc-to-user privileged -z csi-cinder-node-sa
-```
 
-Clone the git repo for the Kubernetes openstack cloud pirovider and check out the corresponding tag for correct kubernetes version.
+- [Cinder CSI volume provisioner](#cinder-csi-volume-provisioner)
+  - [Setting up your secret for OpenStack authentication](#setting-up-your-secret-for-openstack-authentication)
+  - [Installation process](#installation-process)
+    - [Selecting the correct Cinder CSI volume provisioner version](#selecting-the-correct-cinder-csi-volume-provisioner-version)
+    - [Installing Cinder CSI volume provisioner](#installing-cinder-csi-volume-provisioner)
+  - [Test Cinder CSI volume provisioner](#test-cinder-csi-volume-provisioner)
+  - [Updating your installation](#updating-your-installation)
+  - [Uninstalling](#uninstalling)
+  - [FAQ](#faq)
+    - [The challenge with using Helm's `values.yaml` for secrets](#the-challenge-with-using-helms-valuesyaml-for-secrets)
 
-```
-$ git clone https://github.com/kubernetes/cloud-provider-openstack.git
-$ oc version
-Client Version: 4.9.0-0.okd-2021-11-28-035710
-Server Version: 4.9.0-0.okd-2021-12-12-025847
-Kubernetes Version: v1.22.1-1824+934e08bc2ce38f-dirty
-$ cd cloud-provider-openstack
-$ git tag
-(...)
-v1.22.1
-$ git checkout v1.22.1
-```
 
-Create application credentials in the project.
-```
+## Setting up your secret for OpenStack authentication
+
+Securing communication between Cinder CSI volume provisioner and OpenStack is paramount. Utilizing an application credential facilitates this by providing the necessary authentication details for interactions with OpenStack services.
+
+#### 1. Creating an application credential
+Initiate the creation of a new application credential tailored for your requirements. If you have previously generated credentials, consider reusing them for the Cinder CSI plugin. To manage your credentials effectively, use the command below to create a new set or list existing ones:
+```bash
 openstack application credential create <app-cred-name>
+openstack application credential list
 ```
 
-Use the id and secret of the application credential in the cloud config for the helm chart deployment embedded in a helm chart values file.
+Upon creation, extract the `auth_url`, `Application ID`, and `Application secret` to enable OpenStack authentication:
+```bash
+auth_url=$(openstack configuration show -f json | jq .auth_url)
+
+json_output=$(openstack application credential create cinder-csi --format json)
+app_id=$(echo $json_output | jq -r '.id')
+app_secret=$(echo $json_output | jq -r '.secret')
+
+echo "auth_url: ${auth_url}"
+echo "Application ID: ${app_id}"
+echo "Application secret: ${app_secret}"
 ```
-$ cat csi-values.yaml
-secret:
-  enabled: true
-  create: true
+
+#### 2. Create a namespace for storage CSI
+Establish a dedicated namespace for the CSI, enhancing organizational clarity and security:
+
+```bash
+namespace="csi"
+oc create namespace ${namespace}
+```
+
+#### 3. Prepare Your cloud configuration
+Generate a configuration file encoded in base64 for Kubernetes secret storage. This configuration allows your application to authenticate with OpenStack:
+
+```bash
+cloud_config="[Global]
+auth-url=${auth_url}
+application-credential-id=${app_id}
+application-credential-secret=${app_secret}"
+
+cloud_config_encoded=$(echo "${cloud_config}" | base64 | tr -d '\n')
+echo -e "${cloud_config_encoded}" | base64 -d
+```
+
+#### 4. Deploy the encoded configuration as your secret
+Utilize this Kubernetes manifest to securely store your OpenStack credentials within the created namespace:
+
+```yaml
+oc apply -f - <<EOF
+kind: Secret
+apiVersion: v1
+metadata:
   name: cinder-csi-cloud-config
-  data:
-    cloud-config: |-
-      [Global]
-      auth-url=<the-api-endpoint-of-openstack-where-the-cluster-lives>
-      application-credential-id=<id>
-      application-credential-secret=<secret>
+  namespace: ${namespace}
+data:
+  cloud.conf: ${cloud_config_encoded}
+type: Opaque
+EOF
 ```
 
-Deploy the chart to the project you created
+## Installation process
+
+### Selecting the correct Cinder CSI volume provisioner version
+
+Match the Cinder CSI provisioner version with your Kubernetes version. Retrieve your Kubernetes version and list available Helm chart versions to ensure compatibility.
+
+Obtain your OpenShift version:
+```bash
+oc version
 ```
-helm install <name-of-helm-chart-deployment> -f csi-values.yaml ./cloud-provider-openstack/charts/cinder-csi-plugin
+```
+Client Version: 4.15.0
+Kustomize Version: v5.0.4-0.20230601165947-6ce0bf390ce3
+Server Version: 4.15.0
+Kubernetes Version: v1.28.6+6216ea1
+```
+List available Cinder CSI versions:
+```bash
+namespace="${namespace:-csi}"
+helm repo -n ${namespace} add cpo https://kubernetes.github.io/cloud-provider-openstack
+helm search -n ${namespace} repo cpo/openstack-cinder-csi --versions
+```
+| name                     | version | app_version | description                    |
+| ------------------------ | ------- | ----------- | ------------------------------ |
+| cpo/openstack-cinder-csi | 2.29.0  | v1.29.0     | Cinder CSI Chart for OpenStack |
+| cpo/openstack-cinder-csi | 2.28.2  | v1.28.2     | Cinder CSI Chart for OpenStack |
+| cpo/openstack-cinder-csi | 2.28.1  | v1.28.1     | Cinder CSI Chart for OpenStack |
+| cpo/openstack-cinder-csi | 2.28.0  | v1.28.0     | Cinder CSI Chart for OpenStack |
+| cpo/openstack-cinder-csi | 2.27.3  | v1.27.3     | Cinder CSI Chart for OpenStack |
+| cpo/openstack-cinder-csi | 2.27.2  | v1.27.2     | Cinder CSI Chart for OpenStack |
+| cpo/openstack-cinder-csi | 2.27.1  | v1.27.1     | Cinder CSI Chart for OpenStack |
+| cpo/openstack-cinder-csi | 2.27.0  | v1.27.0     | Cinder CSI Chart for OpenStack |
+
+Match your kubernetes version with the version in app_version column. When searching for specific version, keep in mind that it is the Helm chart version you are specifying, not the kubernetes version.
+
+```bash
+helm search -n ${namespace} repo cpo/openstack-cinder-csi --version '~2.28'
+```
+| name                     | version | app_version | description                    |
+| ------------------------ | ------- | ----------- | ------------------------------ |
+| cpo/openstack-cinder-csi | 2.28.2  | v1.28.2     | Cinder CSI Chart for OpenStack |
+
+When searching for the right version, we are using Tilde range comparisons. The tilde (~) comparison operator is for patch level ranges when a minor version is specified and major level changes when the minor number is missing. In our example, `~2.28` is equivalent to `>= 2.28, < 2.29`.
+
+in `Chart.yaml`, update the dependencies so it searching for the same version
+
+```yaml
+dependencies:
+  - name: openstack-cinder-csi
+    version: '~2.28'
+    repository: "https://kubernetes.github.io/cloud-provider-openstack"
 ```
 
-Check that all pods came up and/or check events and/or logs. Also check that the storage classes from the chart were created
-```
-$ oc get pods
-NAME                                                     READY   STATUS    RESTARTS   AGE
-openstack-cinder-csi-controllerplugin-6dcbdd9bc8-qrpjn   6/6     Running   0          19h
-openstack-cinder-csi-nodeplugin-kmk4r                    3/3     Running   0          19h
-openstack-cinder-csi-nodeplugin-l2kjc                    3/3     Running   0          19h
-openstack-cinder-csi-nodeplugin-mrvxb                    3/3     Running   0          19h
-openstack-cinder-csi-nodeplugin-rzczl                    3/3     Running   0          19h
-openstack-cinder-csi-nodeplugin-z5s52                    3/3     Running   0          19h
-
-$ oc logs openstack-cinder-csi-controllerplugin-6dcbdd9bc8-qrpjn
-error: a container name must be specified for pod openstack-cinder-csi-controllerplugin-6dcbdd9bc8-qrpjn, choose one of: [csi-attacher csi-provisioner csi-snapshotter csi-resizer liveness-probe cinder-csi-plugin]
-$ oc logs openstack-cinder-csi-controllerplugin-6dcbdd9bc8-qrpjn -c cinder-csi-plugin
-(...)
-$ oc get events
-(...)
-$ oc get storageclass
-NAME                   PROVISIONER                RECLAIMPOLICY   VOLUMEBINDINGMODE   ALLOWVOLUMEEXPANSION   AGE
-csi-cinder-sc-delete   cinder.csi.openstack.org   Delete          Immediate           true                   19h
-csi-cinder-sc-retain   cinder.csi.openstack.org   Retain          Immediate           true                   19h
+Update dependencies
+```bash
+helm dependency update
 ```
 
-To test that dynamic provisioning and attachment you can apply this in a new project. It will create a persistent volume claim (PVC) and a pod utilising that PVC.
+If you have changes, push this to your git repository.
+
+### Installing Cinder CSI volume provisioner
+
+```bash
+namespace="${namespace:-csi}"
+helm install -n ${namespace} cinder-csi .
 ```
-$ oc new-project bar
-$ cat pvc-test.yaml
+
+Verify with `oc -n ${namespace} get pods` that you have one `controllerplugin` pod and `nodeplugin` pods for each node in your cluster.
+```bash
+oc -n ${namespace} get pods
+```
+
+| NAME                                                   | READY | STATUS  | RESTARTS | AGE  |
+|--------------------------------------------------------|-------|---------|----------|------|
+| openstack-cinder-csi-controllerplugin-544fc6fc4c-cnjft | 6/6   | Running | 0        | 151m |
+| openstack-cinder-csi-nodeplugin-5t54r                  | 3/3   | Running | 0        | 151m |
+| openstack-cinder-csi-nodeplugin-dc5hc                  | 3/3   | Running | 0        | 151m |
+| openstack-cinder-csi-nodeplugin-dxkhb                  | 3/3   | Running | 0        | 151m |
+| openstack-cinder-csi-nodeplugin-kxzr8                  | 3/3   | Running | 0        | 151m |
+| openstack-cinder-csi-nodeplugin-vp8qg                  | 3/3   | Running | 0        | 151m |
+
+You now have two different storage classes to use.
+```bash
+oc get storageclass -o custom-columns=Name:.metadata.name,Provisoner:.provisioner
+```
+| Name                 | Provisoner               |
+|----------------------|--------------------------|
+| csi-cinder-sc-delete | cinder.csi.openstack.org |
+| csi-cinder-sc-retain | cinder.csi.openstack.org |
+
+## Test Cinder CSI volume provisioner
+Test Cinder CSI volume provisioner by creating a Persistent Volume Claim and then a application that's using this PVC.
+
+```bash
+namespace_test="csi-test"
+oc create namespace ${namespace_test}
+```
+```yaml
+oc apply -f - <<EOF
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: csi-pvc-cinderplugin
+  namespace: ${namespace_test}
 spec:
   accessModes:
-  - ReadWriteOnce
+    - ReadWriteOnce
   resources:
     requests:
       storage: 1Gi
   storageClassName: csi-cinder-sc-delete
-
----
+EOF
+```
+```yaml
+oc apply -f - <<EOF
 apiVersion: v1
 kind: Pod
 metadata:
   name: nginx
+  namespace: ${namespace_test}
 spec:
   containers:
-  - image: nginx
-    imagePullPolicy: IfNotPresent
-    name: nginx
-    ports:
-    - containerPort: 80
-      protocol: TCP
-    volumeMounts:
-      - mountPath: /var/lib/www/html
-        name: csi-data-cinderplugin
+    - image: docker.io/nginxinc/nginx-unprivileged
+      imagePullPolicy: IfNotPresent
+      name: nginx
+      ports:
+        - containerPort: 8080
+          protocol: TCP
+      volumeMounts:
+        - mountPath: /var/lib/www/html
+          name: csi-data-cinderplugin
   volumes:
-  - name: csi-data-cinderplugin
-    persistentVolumeClaim:
-      claimName: csi-pvc-cinderplugin
-      readOnly: false
+    - name: csi-data-cinderplugin
+      persistentVolumeClaim:
+        claimName: csi-pvc-cinderplugin
+        readOnly: false
+EOF
 
-$oc apply -f pvc-test.yaml
-persistentvolumeclaim/csi-pvc-cinderplugin created
-pod/nginx created
+```
+The persistent volume claim should be "Bound" when successful.
+```bash
+oc -n ${namespace_test} get pvc -o custom-columns=Name:.metadata.name,Status:.status.phase,Volume:.spec.volumeName
+```
+| Name                 | Status | Volume                                   |
+|----------------------|--------|------------------------------------------|
+| csi-pvc-cinderplugin | Bound  | pvc-ed60e725-93e8-447c-bc18-ca33546f2ce8 |
+
+If you have any problems, start by looking into the events table with `oc -n ${namespace_test} events`.
+
+In Openstack you can use openstack cli to see your volume.
+```bash
+openstack volume show pvc-ed60e725-93e8-447c-bc18-ca33546f2ce8
 ```
 
-Check that the PVC, PV, pod and attachments were made.
+Finally delete your test:
+```bash
+oc delete namespace ${namespace_test}
 ```
-$ oc get pvc
-NAME                   STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS           AGE
-csi-pvc-cinderplugin   Bound    pvc-05650fd3-9ce3-4685-b9e8-614c84f31ccb   1Gi        RWO            csi-cinder-sc-delete   34s
 
-$ oc get pv
-NAME                                       CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM                      STORAGECLASS           REASON   AGE
-pvc-05650fd3-9ce3-4685-b9e8-614c84f31ccb   1Gi        RWO            Delete           Bound    bar/csi-pvc-cinderplugin   csi-cinder-sc-delete            63s
-
-$ oc get volumeattachments
-NAME                                                                   ATTACHER                   PV                                         NODE                   ATTACHED   AGE
-csi-2e0590e5d4cf01ae74666d6204159172a2db8dfa58e2a214ed58e4a483abf9e0   cinder.csi.openstack.org   pvc-05650fd3-9ce3-4685-b9e8-614c84f31ccb   worker-1-wip.saft.in   true       110s
-
-$ oc get pods -o wide
-NAME    READY   STATUS    RESTARTS   AGE    IP             NODE                   NOMINATED NODE   READINESS GATES
-nginx   1/1     Running   0          3m3s   10.128.3.129   worker-1-wip.saft.in   <none>           <none>
-
-$ openstack server show  worker-1-wip.saft.in
-+-----------------------------+----------------------------------------------------------+
-| Field                       | Value                                                    |
-+-----------------------------+----------------------------------------------------------+
-| OS-DCF:diskConfig           | MANUAL                                                   |
-| OS-EXT-AZ:availability_zone | nova                                                     |
-| OS-EXT-STS:power_state      | Running                                                  |
-| OS-EXT-STS:task_state       | None                                                     |
-| OS-EXT-STS:vm_state         | active                                                   |
-| OS-SRV-USG:launched_at      | 2021-12-20T13:44:54.000000                               |
-| OS-SRV-USG:terminated_at    | None                                                     |
-| accessIPv4                  |                                                          |
-| accessIPv6                  |                                                          |
-| addresses                   | public=185.189.29.83, 2a0a:bcc0:40::475                  |
-| config_drive                |                                                          |
-| created                     | 2021-12-20T13:43:24Z                                     |
-| flavor                      | m.medium (54fc7aef-ce1c-461f-aae5-803a38d6b28d)          |
-| hostId                      | be6a5706b78a6cef606167b572d305cc6f6abffe0ce8e9d47ae86c7b |
-| id                          | 3a724f09-052e-4b8c-84b0-405a3a9e72ee                     |
-| image                       | N/A (booted from volume)                                 |
-| key_name                    | None                                                     |
-| name                        | worker-1-wip.saft.in                                     |
-| progress                    | 0                                                        |
-| project_id                  | e781ccfd60474dcda723cc638384bd60                         |
-| properties                  | role='worker'                                            |
-| security_groups             | name='wip-all_ports'                                     |
-|                             | name='wip-ssh'                                           |
-|                             | name='wip-cluster'                                       |
-| status                      | ACTIVE                                                   |
-| updated                     | 2021-12-20T13:44:54Z                                     |
-| user_id                     | fa2679f75828421a87cd092fbdf898e6                         |
-| volumes_attached            | id='35bcc25a-fc11-44b6-b333-029944fc34dd'                |
-|                             | id='86bda412-59ea-471b-8831-31aac4d472b5'                |
-+-----------------------------+----------------------------------------------------------+
-
-$ openstack volume show 86bda412-59ea-471b-8831-31aac4d472b5
-+------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Field                        | Value                                                                                                                                                                                                                                                                                                                               |
-+------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| attachments                  | [{'server_id': '3a724f09-052e-4b8c-84b0-405a3a9e72ee', 'attachment_id': 'f9d869de-44d5-40a9-bf6c-b243471fb7b8', 'attached_at': '2021-12-30T10:04:34.000000', 'host_name': 'sto1-os-cl-1.node.safedc.net', 'volume_id': '86bda412-59ea-471b-8831-31aac4d472b5', 'device': '/dev/vdb', 'id': '86bda412-59ea-471b-8831-31aac4d472b5'}] |
-| availability_zone            | nova                                                                                                                                                                                                                                                                                                                                |
-| bootable                     | false                                                                                                                                                                                                                                                                                                                               |
-| consistencygroup_id          | None                                                                                                                                                                                                                                                                                                                                |
-| created_at                   | 2021-12-30T10:04:31.000000                                                                                                                                                                                                                                                                                                          |
-| description                  | Created by OpenStack Cinder CSI driver                                                                                                                                                                                                                                                                                              |
-| encrypted                    | False                                                                                                                                                                                                                                                                                                                               |
-| id                           | 86bda412-59ea-471b-8831-31aac4d472b5                                                                                                                                                                                                                                                                                                |
-| multiattach                  | False                                                                                                                                                                                                                                                                                                                               |
-| name                         | pvc-05650fd3-9ce3-4685-b9e8-614c84f31ccb                                                                                                                                                                                                                                                                                            |
-| os-vol-tenant-attr:tenant_id | e781ccfd60474dcda723cc638384bd60                                                                                                                                                                                                                                                                                                    |
-| properties                   | cinder.csi.openstack.org/cluster='kubernetes', csi.storage.k8s.io/pv/name='pvc-05650fd3-9ce3-4685-b9e8-614c84f31ccb', csi.storage.k8s.io/pvc/name='csi-pvc-cinderplugin', csi.storage.k8s.io/pvc/namespace='bar'                                                                                                                    |
-| replication_status           | None                                                                                                                                                                                                                                                                                                                                |
-| size                         | 1                                                                                                                                                                                                                                                                                                                                   |
-| snapshot_id                  | None                                                                                                                                                                                                                                                                                                                                |
-| source_volid                 | None                                                                                                                                                                                                                                                                                                                                |
-| status                       | in-use                                                                                                                                                                                                                                                                                                                              |
-| type                         | fast                                                                                                                                                                                                                                                                                                                                |
-| updated_at                   | 2021-12-30T10:04:35.000000                                                                                                                                                                                                                                                                                                          |
-| user_id                      | fa2679f75828421a87cd092fbdf898e6                                                                                                                                                                                                                                                                                                    |
-+------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+## Updating your installation
+Should there be updates available for the Cinder CSI provisioner, use the following command to apply them:
+```bash
+namespace="${namespace:-csi}"
+helm upgrade -n ${namespace} cinder-csi .
 ```
+
+## Uninstalling
+If you need to uninstall the Cinder CSI provisioner, execute these commands:
+```bash
+namespace="${namespace:-csi}"
+helm install -n ${namespace} cinder-csi .
+oc delete namespace ${namespace}
+```
+
+## FAQ
+
+### The challenge with using Helm's `values.yaml` for secrets
+
+While Helm charts offer the convenience of automating deployments, including the creation of secrets via the `values.yaml` file, this method presents significant security challenges, especially in a GitOps workflow with ArgoCD.
+
+For example, when configuring the `openstack-cinder-csi` chart, you might be tempted to directly embed sensitive credentials within the `values.yaml` file like so:
+
+```yaml
+openstack-cinder-csi:
+  secret:
+    enabled: true
+    create: true
+    name: cinder-csi-cloud-config
+    data:
+      cloud.conf: |-
+        [Global]
+        auth-url=<auth_url>
+        application-credential-id=<app_id>
+        application-credential-secret=<app_secret>
+```
+
+This approach works fine for manual Helm installations. However, in a GitOps setup where ArgoCD automatically applies configurations from a Git repository, storing secrets in this manner is risky. The primary concern is security: storing sensitive data, like credentials, in a Git repository—even if it's private—exposes your infrastructure to potential breaches.
