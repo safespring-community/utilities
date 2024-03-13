@@ -1,0 +1,44 @@
+
+# For possible options, see
+# https://github.com/kubernetes/cloud-provider-openstack/blob/master/charts/cinder-csi-plugin/values.yaml
+
+openstack-cinder-csi:
+  priorityClassName: system-cluster-critical
+
+  secret:
+    enabled: true
+    name: cinder-csi-cloud-config
+
+  storageClass:
+    enabled: true
+    delete:
+      isDefault: true
+    retain:
+      isDefault: true
+
+  csi:
+    plugin:
+      nodePlugin:
+        nodeSelector:
+          kubernetes.io/os: linux
+        tolerations:
+          - operator: Exists
+
+      controllerPlugin:
+        nodeSelector:
+          node-role.kubernetes.io/master: ""
+        tolerations:
+          - key: CriticalAddonsOnly
+            operator: Exists
+          - key: node-role.kubernetes.io/master
+            operator: Exists
+            effect: "NoSchedule"
+        affinity:
+          podAntiAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+              - weight: 100
+                podAffinityTerm:
+                  labelSelector:
+                    matchLabels:
+                      app: openstack-cinder-csi
+                  topologyKey: kubernetes.io/hostname
