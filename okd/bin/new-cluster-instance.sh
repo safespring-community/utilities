@@ -39,6 +39,10 @@ enterprise: False
 rhcos_image: 
 pull_secret:
 
+
+# Enable dns record creation
+dns_enable: 1
+
 # okd_loadbalancer_flavor: "lm.small"
 # okd_master_flavor: "lm.large.1d"
 

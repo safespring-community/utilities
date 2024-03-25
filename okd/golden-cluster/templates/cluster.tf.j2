@@ -6,12 +6,13 @@ module okd_cluster {
   openstack_base_image_name = "{{ okd_fcos_image }}"
   {% endif %}
   domain_name = "{{ okd_base_domain }}"
+  dns_enable = "{{dns_enable | default(0)}}"
   openstack_loadbalancer_flavor_name = "{{ okd_loadbalancer_flavor | default('b2.c1r4') }}"
   openstack_master_flavor_name = "{{ okd_master_flavor | default('l2.c8r16.500') }}"
   master_affinity = "{{master_affinity}}"
   lb_ssh_pubkey_path = "{{ssh_key_path}}"
   lb_image_name = "ubuntu-22.04"
-  source = "github.com/safespring-community/terraform-modules.git//v2-okd-cluster-gandi-dns?ref=v0.13.1"
+  source = "github.com/safespring-community/terraform-modules.git//v2-okd-cluster-gandi-dns?ref=v0.13.3"
 
   number_of_boot = "{{okd_boot }}"
   number_of_masters = "{{ okd_masters | default(3) }}"
