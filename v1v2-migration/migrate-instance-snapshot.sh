@@ -1,7 +1,7 @@
 #!/bin/bash
 if [ $# -ne 2 ]
   then
-     echo "USAGE: migrate-instance-snapshot.sh [os-cloud source] [os-cloude destination]"
+     echo "USAGE: migrate-instance-snapshot.sh [os-cloud source] [os-cloud destination]"
     echo "You need API access correctly setup with a clouds.yaml. Please go to https://docs.openstack.org/python-openstackclient/pike/configuration/index.html to get directions for how to set that up."
     echo "The script migrates a snapshot from the source platform to the destination platform."
     echo "When running the script you will be provided with a list of images/snapshots and asked to type which snapshot to migrate to the new platform"
@@ -17,7 +17,7 @@ fi
 
 echo $(date -u) ":Please provide image name:"
 read imgname
-MIN_DISK=`openstack --insecure --os-cloud=$1 image show -f json $imgname|jq -r '.min_disk'`
+MIN_DISK=`openstack --insecure --os-cloud=$1 image show -f json "$imgname"|jq -r '.min_disk'`
 echo $(date -u) ":Downloading image $imgname with min_disk=$MIN_DISK"
 openstack --insecure --os-cloud=$1 image save "$imgname" > "$imgname".raw
 echo $(date -u) ":Converting image to $imgname.qcow2"
