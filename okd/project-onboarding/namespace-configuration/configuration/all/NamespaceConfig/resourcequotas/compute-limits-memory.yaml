@@ -1,0 +1,27 @@
+apiVersion: redhatcop.redhat.io/v1alpha1
+kind: NamespaceConfig
+metadata:
+  name: compute-limits-memory
+  labels:
+    project-onboarding/version: v1
+spec:
+  labelSelector:
+    matchExpressions:
+      - key: project-onboarding/managed-by
+        operator: Exists
+      - key: project-onboarding/compute-limits-memory
+        operator: Exists
+  templates:
+    - objectTemplate: |
+        apiVersion: v1
+        kind: ResourceQuota
+        metadata:
+          name: compute-limits-memory
+          namespace: {{ .Name }}
+          labels:
+            project-onboarding/managed-by: project-onboarding
+          annotations:
+            description: "Applies memory resource limits for the namespace based on 'project-onboarding/compute-limits-memory' label."
+        spec:
+          hard:
+            limits.memory: {{ index .Labels "project-onboarding/compute-limits-memory" }}

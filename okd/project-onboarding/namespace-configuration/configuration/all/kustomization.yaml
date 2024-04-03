@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- NamespaceConfig/networkpolicies/networkpolicies-multitenancy.yaml
+- NamespaceConfig/networkpolicies/networkpolicies-team.yaml
+- NamespaceConfig/resourcequotas/compute-limits-cpu-default.yaml
+- NamespaceConfig/resourcequotas/compute-limits-cpu.yaml
+- NamespaceConfig/resourcequotas/compute-limits-memory-default.yaml
+- NamespaceConfig/resourcequotas/compute-limits-memory.yaml
+- NamespaceConfig/resourcequotas/storage-csi-cinder-sc-delete-size.yaml
+- NamespaceConfig/resourcequotas/storage-csi-cinder-sc-retain-size.yaml
+- NamespaceConfig/resourcequotas/storage-global-size-limit.yaml
+- NamespaceConfig/resourcequotas/storage-no-storage.yaml
+- NamespaceConfig/rolebindings/rolebindings-team.yaml
+- NamespaceConfig/rolebindings/rolebindings-team1.yaml
+- NamespaceConfig/rolebindings/rolebindings-team2.yaml
+- NamespaceConfig/rolebindings/rolebindings-team3.yaml

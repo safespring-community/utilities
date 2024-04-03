@@ -1,0 +1,7 @@
+kind: Namespace
+apiVersion: v1
+metadata:
+  name: <kustomized>
+  labels:
+    project-onboarding/networkpolicies: default
+    project-onboarding/compute-size: small

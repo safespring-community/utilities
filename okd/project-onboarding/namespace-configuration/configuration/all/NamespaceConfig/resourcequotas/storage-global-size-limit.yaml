@@ -1,0 +1,27 @@
+apiVersion: redhatcop.redhat.io/v1alpha1
+kind: NamespaceConfig
+metadata:
+  name: storage-global-size-limit
+  labels:
+    project-onboarding/version: v1
+spec:
+  labelSelector:
+    matchExpressions:
+      - key: project-onboarding/managed-by
+        operator: Exists
+      - key: project-onboarding/storage-size
+        operator: Exists
+  templates:
+    - objectTemplate: |
+        apiVersion: v1
+        kind: ResourceQuota
+        metadata:
+          name: storage-global-size-limit
+          namespace: {{ .Name }}
+          labels:
+            project-onboarding/managed-by: project-onboarding
+          annotations:
+            description: "The total allowed sum of all storageclasses based on namespace label 'project-onboarding/storage-size'."
+        spec:
+          hard:
+            requests.storage: {{ index .Labels "project-onboarding/storage-size" }}

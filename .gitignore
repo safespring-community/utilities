@@ -3,3 +3,6 @@ play.safespring.com/ProcessedVideos/*
 play.safespring.com/RawVideos/*
 play.safespring.com/url_list
 play.safespring.com/old_uploads
+
+!.gitignore
+.*

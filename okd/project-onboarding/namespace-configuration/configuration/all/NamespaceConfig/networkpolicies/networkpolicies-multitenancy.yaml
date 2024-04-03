@@ -1,0 +1,93 @@
+apiVersion: redhatcop.redhat.io/v1alpha1
+kind: NamespaceConfig
+metadata:
+  name: networkpolicies-multitenancy
+  labels:
+    project-onboarding/version: v1
+spec:
+  labelSelector:
+    matchExpressions:
+      - key: project-onboarding/managed-by
+        operator: Exists
+      - key: project-onboarding/networkpolicies-multitenancy
+        operator: NotIn
+        values:
+          - 'false'
+  templates:
+    - objectTemplate: |
+        apiVersion: networking.k8s.io/v1
+        kind: NetworkPolicy
+        metadata:
+          name: multitenancy-allow-from-kube-apiserver-operator
+          namespace: {{ .Name }}
+          labels:
+            project-onboarding/managed-by: project-onboarding
+          annotations:
+            description: "Applies defailt multitenancy network policies based on namespace 'project-onboarding/networkpolicies-multitenancy' label."
+        spec:
+          podSelector: {}
+          ingress:
+            - from:
+                - namespaceSelector:
+                    matchLabels:
+                      kubernetes.io/metadata.name: openshift-kube-apiserver-operator
+                  podSelector:
+                    matchLabels:
+                      app: kube-apiserver-operator
+          policyTypes:
+            - Ingress
+    - objectTemplate: |
+        apiVersion: networking.k8s.io/v1
+        kind: NetworkPolicy
+        metadata:
+          name: multitenancy-allow-from-openshift-ingress
+          namespace: {{ .Name }}
+          labels:
+            project-onboarding/managed-by: project-onboarding
+          annotations:
+            resourceQuotaDetails: "Applies multitenancy network policies based on namespace 'project-onboarding/networkpolicies' label."
+        spec:
+          ingress:
+            - from:
+                - namespaceSelector:
+                    matchLabels:
+                      policy-group.network.openshift.io/ingress: ''
+          podSelector: {}
+          policyTypes:
+            - Ingress
+    - objectTemplate: |
+        apiVersion: networking.k8s.io/v1
+        kind: NetworkPolicy
+        metadata:
+          name: multitenancy-allow-from-openshift-monitoring
+          namespace: {{ .Name }}
+          labels:
+            project-onboarding/managed-by: project-onboarding
+          annotations:
+            resourceQuotaDetails: "Applies multitenancy network policies based on namespace 'project-onboarding/networkpolicies' label."
+        spec:
+          ingress:
+            - from:
+                - namespaceSelector:
+                    matchLabels:
+                      network.openshift.io/policy-group: monitoring
+          podSelector: {}
+          policyTypes:
+            - Ingress
+    - objectTemplate: |
+        kind: NetworkPolicy
+        apiVersion: networking.k8s.io/v1
+        metadata:
+          name: multitenancy-allow-same-namespace
+          namespace: {{ .Name }}
+          labels:
+            project-onboarding/managed-by: project-onboarding
+          annotations:
+            resourceQuotaDetails: "Applies multitenancy network policies based on namespace 'project-onboarding/networkpolicies' label."
+        spec:
+          podSelector: {}
+          ingress:
+            - from:
+                - podSelector: {}
+          policyTypes:
+            - Ingress

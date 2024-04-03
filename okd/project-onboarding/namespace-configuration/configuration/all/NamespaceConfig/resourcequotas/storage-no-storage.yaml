@@ -1,0 +1,31 @@
+apiVersion: redhatcop.redhat.io/v1alpha1
+kind: NamespaceConfig
+metadata:
+  name: storage-no-storage
+  labels:
+    project-onboarding/version: v1
+spec:
+  labelSelector:
+    matchExpressions:
+      - key: project-onboarding/managed-by
+        operator: Exists
+      - key: project-onboarding/storage-csi-cinder-sc-delete-size
+        operator: DoesNotExist
+      - key: project-onboarding/storage-csi-cinder-sc-retain-size
+        operator: DoesNotExist
+      - key: project-onboarding/storage-size
+        operator: DoesNotExist
+  templates:
+    - objectTemplate: |
+        apiVersion: v1
+        kind: ResourceQuota
+        metadata:
+          name: storage-no-storage
+          namespace: {{ .Name }}
+          labels:
+            project-onboarding/managed-by: project-onboarding
+          annotations:
+            description: "No storage resources are specified as namespace labels at project-onboarding/storage-size or project-onboarding/storage-<storageclass>-size."
+        spec:
+          hard:
+            persistentvolumeclaims: 0

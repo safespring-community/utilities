@@ -1,0 +1,22 @@
+apiVersion: redhatcop.redhat.io/v1alpha1
+kind: GroupConfig
+metadata:
+  name: group-shared-namespace
+  labels:
+    project-onboarding/version: v1
+spec:
+  labelSelector:
+    matchExpressions:
+      - key: project-onboarding/group-shared-namespace
+        operator: Exists
+  templates:
+    - objectTemplate: |
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: {{ .Name }}-sandbox
+          labels:
+            project-onboarding/managed-by: project-onboarding
+            project-onboarding/team: {{ .Name }}
+          annotations:
+            description: "Automatically provisioning a namespace tailored for team collaboration, based on the 'project-onboarding/group-shared-namespace' group label."
