@@ -1,0 +1,38 @@
+apiVersion: redhatcop.redhat.io/v1alpha1
+kind: NamespaceConfig
+metadata:
+  name: rolebindings-team2
+  labels:
+    project-onboarding/version: v1
+spec:
+  labelSelector:
+    matchExpressions:
+      - key: project-onboarding/managed-by
+        operator: Exists
+      - key: project-onboarding/team2-name
+        operator: Exists
+      - key: project-onboarding/team2-permissions
+        operator: In
+        values:
+          - admin
+          - edit
+          - view
+  templates:
+    - objectTemplate: |
+        apiVersion: rbac.authorization.k8s.io/v1
+        kind: RoleBinding
+        metadata:
+          name: team2
+          namespace: {{ .Name }}
+          labels:
+            project-onboarding/managed-by: project-onboarding
+          annotations:
+            description: "Applies team permissions based on namespace labels 'project-onboarding/team2-name' and 'project-onboarding/team2-permissions'"
+        subjects:
+          - apiGroup: rbac.authorization.k8s.io
+            kind: Group
+            name: {{ index .Labels "project-onboarding/team2-name" }}
+        roleRef:
+          apiGroup: rbac.authorization.k8s.io
+          kind: ClusterRole
+          name: {{ index .Labels "project-onboarding/team2-permissions" }}

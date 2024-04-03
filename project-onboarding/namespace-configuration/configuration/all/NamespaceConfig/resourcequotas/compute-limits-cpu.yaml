@@ -1,0 +1,27 @@
+apiVersion: redhatcop.redhat.io/v1alpha1
+kind: NamespaceConfig
+metadata:
+  name: compute-limits-cpu
+  labels:
+    project-onboarding/version: v1
+spec:
+  labelSelector:
+    matchExpressions:
+      - key: project-onboarding/managed-by
+        operator: Exists
+      - key: project-onboarding/compute-limits-cpu
+        operator: Exists
+  templates:
+    - objectTemplate: |
+        apiVersion: v1
+        kind: ResourceQuota
+        metadata:
+          name: compute-limits-cpu
+          namespace: {{ .Name }}
+          labels:
+            project-onboarding/managed-by: project-onboarding
+          annotations:
+            description: "Applies cpu resource limits based on namespace label 'project-onboarding/compute-limits-cpu'"
+        spec:
+          hard:
+            limits.cpu: {{ index .Labels "project-onboarding/compute-limits-cpu" }}

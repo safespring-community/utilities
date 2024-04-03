@@ -1,0 +1,27 @@
+kind: Namespace
+apiVersion: v1
+metadata:
+  name: glassproj-appname-acc
+  labels:
+    project-onboarding/managed-by: selfservice-api
+
+    project-onboarding/compute-limits-cpu: "10"
+    project-onboarding/compute-limits-memory: 8Gi
+
+    project-onboarding/storage-size: 300Gi
+    project-onboarding/storage-csi-cinder-sc-retain-size: 100Gi
+    project-onboarding/storage-csi-cinder-sc-delete-size: 200Gi
+
+    project-onboarding/team: glassproj
+
+    project-onboarding/team1-name: glassproj-admins
+    project-onboarding/team1-permissions: admin
+
+    project-onboarding/team2-name: glassproj-editors
+    project-onboarding/team2-permissions: edit
+
+    project-onboarding/team3-name: glassproj-viewers
+    project-onboarding/team3-permissions: view
+
+    project-onboarding/networkpolicies-multitenancy: "true"
+    project-onboarding/networkpolicies-team: glassproj

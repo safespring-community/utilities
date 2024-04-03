@@ -1,0 +1,27 @@
+apiVersion: redhatcop.redhat.io/v1alpha1
+kind: NamespaceConfig
+metadata:
+  name: compute-limits-cpu-default
+  labels:
+    project-onboarding/version: v1
+spec:
+  labelSelector:
+    matchExpressions:
+      - key: project-onboarding/managed-by
+        operator: Exists
+      - key: project-onboarding/compute-limits-cpu
+        operator: DoesNotExist
+  templates:
+    - objectTemplate: |
+        apiVersion: v1
+        kind: ResourceQuota
+        metadata:
+          name: compute-limits-cpu-default
+          namespace: {{ .Name }}
+          labels:
+            project-onboarding/managed-by: project-onboarding
+          annotations:
+            description: "Applies default cpu resource limits for the namespace due to the absence of 'project-onboarding/compute-limits-cpu' label."
+        spec:
+          hard:
+            limits.cpu: 1

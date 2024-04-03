@@ -1,0 +1,27 @@
+apiVersion: redhatcop.redhat.io/v1alpha1
+kind: NamespaceConfig
+metadata:
+  name: storage-csi-cinder-sc-delete-size
+  labels:
+    project-onboarding/version: v1
+spec:
+  labelSelector:
+    matchExpressions:
+      - key: project-onboarding/managed-by
+        operator: Exists
+      - key: project-onboarding/storage-csi-cinder-sc-delete-size
+        operator: Exists
+  templates:
+    - objectTemplate: |
+        apiVersion: v1
+        kind: ResourceQuota
+        metadata:
+          name: storage-csi-cinder-sc-delete-size
+          namespace: {{ .Name }}
+          labels:
+            project-onboarding/managed-by: project-onboarding
+          annotations:
+            description: "The total allowed sum of all requests within this storage class based on namespace label 'project-onboarding/storage-csi-cinder-sc-delete-size'."
+        spec:
+          hard:
+            csi-cinder-sc-delete.storageclass.storage.k8s.io/requests.storage: {{ index .Labels "project-onboarding/storage-csi-cinder-sc-delete-size" }}

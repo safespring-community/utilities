@@ -1,0 +1,34 @@
+apiVersion: redhatcop.redhat.io/v1alpha1
+kind: NamespaceConfig
+metadata:
+  name: networkpolicies-team
+  labels:
+    project-onboarding/version: v1
+spec:
+  labelSelector:
+    matchExpressions:
+      - key: project-onboarding/managed-by
+        operator: Exists
+      - key: project-onboarding/networkpolicies-team
+        operator: Exists
+  templates:
+    - objectTemplate: |
+        apiVersion: networking.k8s.io/v1
+        kind: NetworkPolicy
+        metadata:
+          name: allow-within-team
+          namespace: {{ .Name }}
+          labels:
+            project-onboarding/managed-by: project-onboarding
+          annotations:
+            description: "Allow networktraffic between namespaces with the same namespace label project-onboarding/networkpolicies-team."
+        spec:
+          podSelector: {}
+          ingress:
+            - from:
+                - podSelector: {}
+                  namespaceSelector:
+                    matchLabels:
+                      project-onboarding/networkpolicies-team: {{ index .Labels "project-onboarding/networkpolicies-team" }}
+          policyTypes:
+            - Ingress

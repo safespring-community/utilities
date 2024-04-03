@@ -1,0 +1,16 @@
+kind: Namespace
+apiVersion: v1
+metadata:
+  name: glassproj-appname-utv
+  labels:
+    project-onboarding/managed-by: selfservice-api
+
+    # Missing storage label. Zero PVCs will be allowed.
+    # project-onboarding/storage-csi-cinder-sc-delete-size: 2Gi
+
+    # Missing permissions label. team1 will not be created
+    project-onboarding/team1-name: glassproj-admins
+    #project-onboarding/team1-permissions:
+
+    # Is not false so default network policy will be applied
+    networkpolicies-multitenancy: something

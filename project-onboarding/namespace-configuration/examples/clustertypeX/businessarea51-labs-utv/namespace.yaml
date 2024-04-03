@@ -1,0 +1,7 @@
+kind: Namespace
+apiVersion: v1
+metadata:
+  name: businessarea51-labs-utv
+  labels:
+    project-onboarding/managed-by: selfservice-api
+    project-onboarding/team: businessarea51

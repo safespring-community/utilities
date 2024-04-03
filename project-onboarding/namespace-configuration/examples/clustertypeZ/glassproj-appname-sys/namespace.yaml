@@ -1,0 +1,15 @@
+kind: Namespace
+apiVersion: v1
+metadata:
+  name: glassproj-appname-sys
+  labels:
+    project-onboarding/managed-by: selfservice-api
+
+    project-onboarding/compute-limits-cpu: "5"
+    project-onboarding/compute-limits-memory: 5Gi
+    project-onboarding/storage-size: 300Gi
+
+    project-onboarding/team1-name: glassproj-admins
+    project-onboarding/team1-permissions: admin
+
+    networkpolicies-multitenancy: "true"
