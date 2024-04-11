@@ -251,7 +251,7 @@ helm upgrade -n ${namespace} cinder-csi .
 If you need to uninstall the Cinder CSI provisioner, execute these commands:
 ```bash
 namespace="${namespace:-csi}"
-helm install -n ${namespace} cinder-csi .
+helm uninstall -n ${namespace} cinder-csi .
 oc delete namespace ${namespace}
 ```
 
