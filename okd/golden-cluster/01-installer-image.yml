@@ -17,6 +17,12 @@
     - include_vars: settings.yml
 
   tasks:
+    - name: get latest official openshift-client
+      unarchive:
+        src: https://mirror.openshift.com/pub/openshift-v4/clients/oc/latest/linux/oc.tar.gz
+        remote_src: true
+        dest: "{{ ansible_env.HOME }}/.local/bin"
+        creates: "{{ ansible_env.HOME }}/.local/bin/oc"
     - block:
       - block:
           - name: query origin-release api for latest 4-stable version
@@ -95,22 +101,10 @@
         args:
           creates: "{{ ansible_env.PWD }}/{{ fcos_file_qcow2 }}"
 
-
-      - name: Upload fedora-coreos {{ fcos_release }}
-        openstack.cloud.image:
-          filename: "{{ ansible_env.PWD }}/{{ fcos_file_qcow2 }}"
-          name: "fedora-coreos-{{ fcos_release }}-openstack.x86_64"
-          disk_format: "{{ (to_ceph | default(false)) | ternary('raw', 'qcow2') }}"
-          is_public: "{{ is_public | default(false) }}"
-          checksum: "{{ (to_ceph | default(false)) | ternary(omit, fcos_file_xz_sha256) }}"
-          properties:
-            os_distro: fedora-coreos
-            hw_machine_type: pc
-
       - name: Update fcos_image in settings.yml
         replace:
           path: settings.yml
-          regexp: "^okd_fcos_image: .*$"
+          regexp: "^okd_fcos_image:.*$"
           replace: "okd_fcos_image: fedora-coreos-{{ fcos_release }}-openstack.x86_64"
       when: enterprise == False
 

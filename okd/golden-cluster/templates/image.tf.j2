@@ -1,0 +1,23 @@
+terraform {
+  required_providers {
+    openstack = {
+      source = "terraform-provider-openstack/openstack"
+      version = "~> 1.35"
+    }
+  }
+  required_version = ">= 0.13"
+}
+
+resource "openstack_images_image_v2" "coreos" {
+  name             = "{{okd_fcos_image}}"
+  local_file_path = "{{okd_fcos_image}}.qcow2"
+  container_format = "bare"
+  disk_format      = "qcow2"
+  verify_checksum  = "true"
+  decompress       = "true"
+  properties = {
+    os_distro = "fedora-coreos"
+    hw_machine_type = "pc"
+  }
+}
+

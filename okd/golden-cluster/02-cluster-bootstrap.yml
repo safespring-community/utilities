@@ -24,13 +24,12 @@
         - "{{ installer_dir }}/worker.ign"
       register: _cluster_progress
 
-    - name: Authenticate to the cloud and retrieve the service catalog
-      openstack.cloud.auth:
+    - command: "python3 {{ ansible_env.PWD }}/get_s3_endpoint.py"
+      register: s3_endpoint
 
     - name: Set fact, s3 endpoint
       ansible.builtin.set_fact:
-        s3_endpoint_url: "{{ item }}"
-      loop: "{{ service_catalog|community.general.json_query('[?type==`s3`].endpoints[0].url') }}"
+        s3_endpoint_url: "{{ s3_endpoint.stdout }}"
 
     - name: Get s3 access key
       ansible.builtin.command:
@@ -130,43 +129,29 @@
       vars:
         ignitions_exist: "[?item==`{{ installer_dir }}/bootstrap.ign` || item==`{{ installer_dir }}/master.ign` || item==`{{ installer_dir }}/worker.ign`].stat.exists"
 
-    - name: Create ignition s3 bucket if it does not exist
-      aws_s3:
-        aws_access_key: "{{ s3_access_key_id.stdout }}"
-        aws_secret_key: "{{ s3_secret_key_id.stdout }}"
-        s3_url: "{{ s3_endpoint_url }}"
-        bucket: "{{ s3_bucket }}"
-        mode: create
-        encrypt: false
-      register: _s3_bucket_create
-
-    - name: Upload bootstrap.ign to ignition s3 bucket
-      aws_s3:
-        aws_access_key: "{{ s3_access_key_id.stdout }}"
-        aws_secret_key: "{{ s3_secret_key_id.stdout }}"
-        s3_url: "{{ s3_endpoint_url }}"
-        bucket: "{{ s3_bucket }}"
-        src: "{{ ansible_env.PWD }}/{{ installer_dir }}/bootstrap.ign"
-        object: "{{ s3_filename }}"
-        mode: put
-        encrypt: false
-        object: "{{ s3_filename }}"
-        overwrite: different
-      register: _s3_upload
-
-    - name: presign url
-      command: aws --endpoint-url={{ s3_endpoint_url }} s3 presign s3://{{ s3_bucket }}/{{ s3_filename }}
-      # We don't really mind this change do we?
-      #when: not bootstrap_complete
-      register: _presign_url
+    - block:
+      - name: Make bucket (idempotent)
+        command: "aws --endpoint-url={{ s3_endpoint_url }} s3 mb s3://{{ s3_bucket }}"
+        register: _make_bucket
+      - name: Put bootstrap ignition file in bucket
+        command: aws --endpoint-url={{ s3_endpoint_url }} s3 cp {{ ansible_env.PWD }}/{{ installer_dir }}/bootstrap.ign s3://{{ s3_bucket }}/{{ s3_filename }}
+        register: _put_ignition_object
+      - name: Presign ignition object
+        command: aws --endpoint-url={{ s3_endpoint_url }} s3 presign s3://{{ s3_bucket }}/{{ s3_filename }}
+        register: _presign_url
       environment:
         AWS_ACCESS_KEY_ID: "{{ s3_access_key_id.stdout }}"
         AWS_SECRET_ACCESS_KEY: "{{ s3_secret_key_id.stdout }}"
 
-    # Can't use vars because: presedence
+   # Can't use vars because: presedence
     - name: Change facts for boot
       set_fact:
         workersets: ""
+
+    - name: Terraform template openstack image
+      template:
+        src: "image.tf.j2"
+        dest: "image.tf"
 
     - name: Terraform template boot cluster
       template:

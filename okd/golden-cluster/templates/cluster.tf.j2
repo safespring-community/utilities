@@ -12,13 +12,15 @@ module okd_cluster {
   master_affinity = "{{master_affinity}}"
   lb_ssh_pubkey_path = "{{ssh_key_path}}"
   lb_image_name = "ubuntu-22.04"
-  source = "github.com/safespring-community/terraform-modules.git//v2-okd-cluster-gandi-dns?ref=v0.13.3"
-
+  source = "github.com/safespring-community/terraform-modules.git//v2-okd-cluster-gandi-dns?ref=v0.13.4"
+  lb_network_name = "{{lb_network_name|default('public')}}"
   number_of_boot = "{{okd_boot }}"
   number_of_masters = "{{ okd_masters | default(3) }}"
   {{workersets}}
   network_name = "{{ network_name }}"
-
+  depends_on = [
+    openstack_images_image_v2.coreos
+  ]
   openstack_bootstrap_shim_ignition = "{\"ignition\":{\"version\":\"3.0.0\",\"config\":{\"replace\":{\"source\":\"{{ ignition_url }}\",\"verification\": {} } } } }"
   ignition_master = "{{ lookup('file', './' ~ installer_dir ~ '/master.ign') | regex_replace('\"', '\\\"') }}"
   ignition_worker = "{{ lookup('file', './' ~ installer_dir ~ '/worker.ign') | regex_replace('\"', '\\\"') }}"
