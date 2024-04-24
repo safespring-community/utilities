@@ -9,10 +9,11 @@ using the terraform module(s) in https://github.com/safespring-community/terrafo
 * An ACL entry allowing openstack API access from your source IP address. This can be obtained by sending an email to <support@safespring.com>
   * Or even better: use a jumphost (which is already whitelisted). See https://www.safespring.com/blogg/2022/2022-08-using-jumphost-for-safespring-apis/
 * A liveDNS domain @ gandi.net
-* An API key for your gandi.net user
+* An API key for your gandi.net user (export GANDI_PERSONAL_ACCESS_TOKEN=xxxxxxx)
+  * See 
 * Following packages installed
   * jq
-  * ansible and openstacksdk (pip3 install ansible==6.7.0 openstacksdk==0.61.0)
+  * ansible
 
 ### Creating an OKD cluster instance
 
@@ -23,7 +24,7 @@ using the terraform module(s) in https://github.com/safespring-community/terrafo
   * `OS_APPLICATION_CREDENTIAL_ID=`
   * `OS_APPLICATION_CREDENTIAL_NAME=`
   * `OS_AUTH_TYPE=v3applicationcredential`
-* Export `GANDI_KEY`
+* Export `GANDI_PERSONAL_ACCESS_TOKEN`
 * Run `./bin/new-cluster-instance.sh <cluster-name> <gandi-livedns-domain> <directory>`
   * This will copy all you need to a directory of you own choosing
 * `cd <directory>`
@@ -32,10 +33,9 @@ using the terraform module(s) in https://github.com/safespring-community/terrafo
 * Run the ansible playbooks in order and follow the instructions at the end of each one of them
   * The playbooks ( 03 and 04 ) must be run with option `-i ati` in order to include inventory for the loadbalancer node.
 ```console
-$ (ansible-playbook 01-environment.yml)
-$ ansible-playbook 02-installer-image.yml
-$ ansible-playbook -i ati 03-cluster-bootstrap.yml
-$ ansible-playbook -i ati 04-cluster-finalize.yml
+$ ansible-playbook 01-installer-image.yml
+$ ansible-playbook -i ati 02-cluster-bootstrap.yml
+$ ansible-playbook -i ati 03-cluster-finalize.yml
 ```
 
 To see the cluster bootstrap progress in another window:
@@ -77,32 +77,8 @@ does not exist: thus just remove the old one after `terraform destroy`.
 Opentufu should work eqully well as Terraform in provisioning the cluster, however, it is not yet tested.
 **Known issues**
 
-The `01-environment.yml` playbook serves more as an indication of necessary
-prerequisites. In reality you probably want to use it for creating you own
-prerequisite environment according to you own liking, in order to proceed with
-the installation.
-
-Ansible requires the python package "openstacksdk" for operating on openstack.
-After version 0.61.0 we have this problem:
-https://storyboard.openstack.org/#!/story/2008740. It can be worked around by
-
-```
-$ pip install openstacksdk==0.61.0
-```
-
-Ansible version should be 6.7.0. Install with:
-
-```
-$ pip install ansible==6.7.0
-```
-
 Sometimes Ansible fails to set up HAProxy on the lb-node. If this happens, just
 re-run the playbook once more.
-
-Unfortunately the `GANDI_KEY` used in the terraform provider is deprecated (in
-the API) in favor of personal access tokens (which don't work with the gandi
-terraform provide, however it should be possible to use the old type of key at
-time of writing this (2024-01).
 
 ---
 
