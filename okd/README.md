@@ -54,6 +54,27 @@ PS: Be patient. It takes up to an hour for OKD to assemble itself. But if there 
 
 PS2: If more than 24h passed and you wan't to re-use the instance previously deployed (and destroyed) you **must** remove the `installer` directory.
 
+### DNS integration
+
+If you don't host DNS with Gandi.net you can turn off DNS creation in the
+installer, by setting `dns_enable: 0 `. However, then you need to manually (or
+by your own automation) set up the following A records to point to the
+loadbalancer IP address as soon as possible:
+
+* `api.<cluster_name>.<base_domain>`
+* `api-int.<cluster_name>.<base_domain>`
+* `*.apps.<cluster_name>.<base_domain>`
+
+The cluster will not bootstrap/finilaze until the DNS records are in place.
+When setting `dns_enable: 0`, the environment variable
+`GANDI_PERSONAL_ACCESS_TOKEN` is not required. Also, if you wait too long the
+certificates generated for bootstrapping will expire and the cluster will not
+come up anyway.
+
+The quickest way to obtain the loadbalancer IP address is to fetch it from the Terraform state file, like this for example:
+
+`cat terraform.tfstate|jq '.resources[].instances[]|select(.attributes.all_metadata.role=="lb").attributes.access_ip_v4' -r`
+
 ### Default kubeadmin credentials
 
 Default kubeadmin credentials can be found in file installer/auth/kubeadmin-password
