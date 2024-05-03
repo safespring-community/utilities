@@ -12,7 +12,7 @@ module okd_cluster {
   master_affinity = "{{master_affinity}}"
   lb_ssh_pubkey_path = "{{ssh_key_path}}"
   lb_image_name = "ubuntu-22.04"
-  source = "github.com/safespring-community/terraform-modules.git//v2-okd-cluster-gandi-dns?ref=v0.13.5"
+  source = "github.com/safespring-community/terraform-modules.git//v2-okd-cluster-gandi-dns?ref=v0.13.6"
   lb_network_name = "{{lb_network_name|default('public')}}"
   number_of_boot = "{{okd_boot }}"
   number_of_masters = "{{ okd_masters | default(3) }}"
