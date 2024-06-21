@@ -24,10 +24,7 @@
         - "{{ installer_dir }}/worker.ign"
       register: _cluster_progress
 
-    - debug:
-        msg: "Playbook directory: {{ ansible_playbook_dir }}"    
-
-    - command: python3 {{ ansible_playbook_dir }}/get_s3_endpoint.py
+    - script: {{ ansible_playbook_dir }}/get_s3_endpoint.py
       register: s3_endpoint
 
     - name: Set fact, s3 endpoint
