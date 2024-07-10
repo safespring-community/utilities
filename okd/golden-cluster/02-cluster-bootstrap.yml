@@ -24,7 +24,7 @@
         - "{{ installer_dir }}/worker.ign"
       register: _cluster_progress
 
-    - command: "python3 {{ ansible_env.PWD }}/get_s3_endpoint.py"
+    - command: "python3 -c \"import openstack; conn = openstack.connect(); print(conn.endpoint_for('s3'))\""
       register: s3_endpoint
 
     - name: Set fact, s3 endpoint
