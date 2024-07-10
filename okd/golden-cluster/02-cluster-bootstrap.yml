@@ -41,6 +41,13 @@
         "openstack ec2 credential list -c Secret  -f value"
       register: s3_secret_key_id
 
+    - name: Ensure s3 credentials set
+      ansible.builtin.fail:
+        msg: "S3 credentials not set"
+      when: 
+        - s3_access_key_id.stdout is undefined or s3_access_key_id.stdout == None or s3_access_key_id.stdout | length == 0
+        - s3_secret_key_id.stdout is undefined or s3_secret_key_id.stdout == None or s3_secret_key_id.stdout | length == 0
+
     - name: check for api
       uri:
         url: "https://api.{{ okd_cluster_name }}.{{ okd_base_domain }}:6443/version?timeout=32s"
