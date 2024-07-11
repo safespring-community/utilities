@@ -6,12 +6,12 @@ set -eo pipefail
 # https://stackoverflow.com/a/179231
 pushd . > /dev/null
 SCRIPT_PATH="${BASH_SOURCE[0]}"
-if ([ -h "${SCRIPT_PATH}" ]); then
-  while([ -h "${SCRIPT_PATH}" ]); do cd `dirname "${SCRIPT_PATH}"`;
-  SCRIPT_PATH=`readlink "${SCRIPT_PATH}"`; done
+if [ -h "${SCRIPT_PATH}" ]; then
+  while [ -h "${SCRIPT_PATH}" ]; do cd "$(dirname "${SCRIPT_PATH}")";
+  SCRIPT_PATH=$(readlink "${SCRIPT_PATH}"); done
 fi
 
-SCRIPT_DIR=$(dirname $SCRIPT_PATH)
+SCRIPT_DIR=$(dirname "${SCRIPT_PATH}")
 BASE_DIR="${SCRIPT_DIR}/.."
 
 function make_settings {
@@ -105,13 +105,13 @@ CLUSTER_NAME=$1
 DOMAIN=$2
 DIR=$3
 
-mkdir -p ${DIR}
+mkdir -p "${DIR}"
 
 echo "Copying playbooks, settings and templates to your destination: ${DIR}/${CLUSTER_NAME}.${DOMAIN}"
-cp -r ${BASE_DIR}/golden-cluster  ${DIR}/${CLUSTER_NAME}.${DOMAIN}
-cp -r ${BASE_DIR}/../ati ${DIR}/${CLUSTER_NAME}.${DOMAIN}
-make_settings ${CLUSTER_NAME} ${DOMAIN} > ${DIR}/${CLUSTER_NAME}.${DOMAIN}/settings.yml
+cp -r "${BASE_DIR}"/golden-cluster  "${DIR}/${CLUSTER_NAME}.${DOMAIN}"
+cp -r "${BASE_DIR}/../ati" "${DIR}/${CLUSTER_NAME}.${DOMAIN}"
+make_settings "${CLUSTER_NAME}" "${DOMAIN}" > "${DIR}/${CLUSTER_NAME}.${DOMAIN}/settings.yml"
 
 echo "Now cd to ${DIR}/${CLUSTER_NAME}.${DOMAIN}, change settings.yml to your needs run the playbooks in order"
 echo "Each playbook must complete successfully before the next is run"
-echo "The bootstrap and finalize playbooks take a long ting to finish"
+echo "The bootstrap and finalize playbooks take a long time to finish"
