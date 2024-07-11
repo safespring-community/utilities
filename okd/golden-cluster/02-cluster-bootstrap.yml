@@ -24,7 +24,7 @@
         - "{{ installer_dir }}/worker.ign"
       register: _cluster_progress
 
-    - command: "python3 {{ ansible_env.PWD }}/get_s3_endpoint.py"
+    - command: "python3 -c \"import openstack; conn = openstack.connect(); print(conn.endpoint_for('s3'))\""
       register: s3_endpoint
 
     - name: Set fact, s3 endpoint
@@ -40,6 +40,13 @@
       ansible.builtin.command:
         "openstack ec2 credential list -c Secret  -f value"
       register: s3_secret_key_id
+
+    - name: Ensure s3 credentials set
+      ansible.builtin.fail:
+        msg: "S3 credentials not set"
+      when: 
+        - s3_access_key_id.stdout is undefined or s3_access_key_id.stdout == None or s3_access_key_id.stdout | length == 0
+        - s3_secret_key_id.stdout is undefined or s3_secret_key_id.stdout == None or s3_secret_key_id.stdout | length == 0
 
     - name: check for api
       uri:
