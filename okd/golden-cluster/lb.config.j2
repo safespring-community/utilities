@@ -8,6 +8,7 @@ global
     user        haproxy
     group       haproxy
     daemon
+#!    tune.ssl.default-dh-param    2048
 
     # turn on stats unix socket
     stats socket /var/lib/haproxy/stats
@@ -53,6 +54,17 @@ backend okd4_k8s_api_be
     server {{ hostvars[be_host].inventory_hostname }} {{ hostvars[be_host].access_ip_v4 }}:6443 check
 {% endfor %}
 
+#!frontend okd4_k8s_api_tls_fe
+#!    bind :6444 ssl crt /etc/haproxy/api.pem
+#!    default_backend okd4_k8s_api_tls_be
+#!    option tcplog
+
+backend okd4_k8s_api_tls_be
+    balance source
+{% for be_host in  lb_be_control_plane_servers %}
+    server {{ hostvars[be_host].inventory_hostname }} {{ hostvars[be_host].access_ip_v4 }}:6443 check ssl verify none
+{% endfor %}
+
 frontend okd4_machine_config_server_fe
     bind :22623
     default_backend okd4_machine_config_server_be
@@ -76,7 +88,7 @@ backend okd4_http_ingress_traffic_be
     balance source
     mode tcp
 {% for be_host in  lb_be_app_servers %}
-    server {{ hostvars[be_host].inventory_hostname }} {{ hostvars[be_host].access_ip_v4 }}:80 check
+    server {{ hostvars[be_host].inventory_hostname }} {{ hostvars[be_host].access_ip_v4 }}:80 check #!send-proxy
 {% endfor %}
 
 frontend okd4_https_ingress_traffic_fe
@@ -89,5 +101,5 @@ backend okd4_https_ingress_traffic_be
     balance source
     mode tcp
 {% for be_host in  lb_be_app_servers %}
-    server {{ hostvars[be_host].inventory_hostname }} {{ hostvars[be_host].access_ip_v4 }}:443 check
+    server {{ hostvars[be_host].inventory_hostname }} {{ hostvars[be_host].access_ip_v4 }}:443 check #!send-proxy
 {% endfor %}
