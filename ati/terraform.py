@@ -32,7 +32,7 @@ VERSION = '0.4.0pre'
 
 
 def tfstates(root=None):
-    root = root or os.getcwd()
+    root = os.getcwd()
     for dirpath, _, filenames in os.walk(root):
         for name in filenames:
             if os.path.splitext(name)[-1] == '.tfstate':
