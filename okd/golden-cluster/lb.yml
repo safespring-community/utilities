@@ -20,9 +20,6 @@
       raw: systemd-run --property="After=apt-daily.service apt-daily-upgrade.service" --wait /bin/true
     - set_fact:
         lb_allow_ips: "{{ lb_allow_ips | default([])  + [hostvars[item]['access_ip_v4']]}}"
-      loop: "{{ lb_be_control_plane_servers }}"
-    - debug:
-        msg: "{{ hostvars[item]['access_ip_v4']}}"
       loop: "{{ lb_be_control_plane_servers + lb_be_app_servers}}"
 
     - name: Install haproxy
