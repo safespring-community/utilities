@@ -40,12 +40,19 @@ listen stats
     mode http
     stats enable
     stats uri /
+backend shared_stick_table
+    stick-table type ip size 1m expire 1h store conn_rate(10s),gpc0
 
 frontend okd4_k8s_api_fe
     bind :6443
     default_backend okd4_k8s_api_be
     mode tcp
     option tcplog
+    acl ignore_ips src {{ lb_allow_ips|join(' ') }} {{lb_allow_extra_ips}}
+    tcp-request connection track-sc1 src table shared_stick_table if !ignore_ips
+    tcp-request connection reject if { sc1_conn_rate gt 10000 }
+    tcp-request connection sc-inc-gpc0(1) if { sc1_conn_rate ge 10000 }
+    tcp-request connection reject if { sc1_get_gpc0 gt 2 }
 
 backend okd4_k8s_api_be
     balance source
@@ -83,6 +90,11 @@ frontend okd4_http_ingress_traffic_fe
     default_backend okd4_http_ingress_traffic_be
     mode tcp
     option tcplog
+    acl ignore_ips src {{ lb_allow_ips|join(' ') }} {{lb_allow_extra_ips}}
+    tcp-request connection track-sc1 src table shared_stick_table if !ignore_ips
+    tcp-request connection reject if { sc1_conn_rate gt 10000 }
+    tcp-request connection sc-inc-gpc0(1) if { sc1_conn_rate ge 10000 }
+    tcp-request connection reject if { sc1_get_gpc0 gt 2 }
 
 backend okd4_http_ingress_traffic_be
     balance source
@@ -96,6 +108,11 @@ frontend okd4_https_ingress_traffic_fe
     default_backend okd4_https_ingress_traffic_be
     mode tcp
     option tcplog
+    acl ignore_ips src {{ lb_allow_ips|join(' ') }} {{lb_allow_extra_ips}}
+    tcp-request connection track-sc1 src table shared_stick_table if !ignore_ips
+    tcp-request connection reject if { sc1_conn_rate gt 10000 }
+    tcp-request connection sc-inc-gpc0(1) if { sc1_conn_rate ge 10000 }
+    tcp-request connection reject if { sc1_get_gpc0 gt 2 }
 
 backend okd4_https_ingress_traffic_be
     balance source

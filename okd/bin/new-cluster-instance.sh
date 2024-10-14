@@ -39,6 +39,8 @@ enterprise: False
 rhcos_image: 
 pull_secret:
 
+# Extra ip addresses to excempt bypass loadbalncer ddos-protection (trusteed IPs) . One IP v4 address or a space separated list of IPs
+lb_allow_extra_ips: ''
 
 # Enable dns record creation
 dns_enable: 1
