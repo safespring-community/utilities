@@ -38,6 +38,8 @@
 
 - name: Include loadbalancer setup
   import_playbook: lb.yml
+  tags:
+  - lb
 
 - name: Wait for install complete
   hosts: localhost
