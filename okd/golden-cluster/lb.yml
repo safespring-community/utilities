@@ -9,6 +9,8 @@
                                      (groups['os_metadata_role=boot']   | default([])) }}"
     lb_be_app_servers: "{{ (groups['role=worker']             | default([])) +
                            (groups['os_metadata_role=worker'] | default([])) }}"
+  pre_tasks:
+    - include_vars: settings.yml
   tasks:
     - name: wait for node to come up
       wait_for_connection:
@@ -16,6 +18,9 @@
 
     - name: Wait for any possibly running unattended upgrade to finish
       raw: systemd-run --property="After=apt-daily.service apt-daily-upgrade.service" --wait /bin/true
+    - set_fact:
+        lb_allow_ips: "{{ lb_allow_ips | default([])  + [hostvars[item]['access_ip_v4']]}}"
+      loop: "{{ lb_be_control_plane_servers + lb_be_app_servers}}"
 
     - name: Install haproxy
       apt:
