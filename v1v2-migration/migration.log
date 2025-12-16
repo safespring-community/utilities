@@ -1,0 +1,17 @@
+2025-12-16 19:25:50,381 - migration - INFO - Connecting to cloud 'v1' (SSL verify: True)
+2025-12-16 19:25:50,383 - migration - WARNING - connect failed (attempt 1/3): Failed to connect to cloud 'v1': Cloud v1 was not found.. Retrying in 1.0s...
+2025-12-16 19:25:51,389 - migration - INFO - Connecting to cloud 'v1' (SSL verify: True)
+2025-12-16 19:25:51,397 - migration - WARNING - connect failed (attempt 2/3): Failed to connect to cloud 'v1': Cloud v1 was not found.. Retrying in 2.0s...
+2025-12-16 19:25:53,405 - migration - INFO - Connecting to cloud 'v1' (SSL verify: True)
+2025-12-16 19:25:53,410 - migration - ERROR - connect failed after 3 attempts: Failed to connect to cloud 'v1': Cloud v1 was not found.
+2025-12-16 19:26:24,440 - migration - INFO - Connecting to cloud 'sto2' (SSL verify: True)
+2025-12-16 19:26:24,927 - migration - INFO - Successfully connected to 'sto2'
+2025-12-16 19:26:24,929 - migration - INFO - Connecting to cloud 'sto1' (SSL verify: True)
+2025-12-16 19:26:25,428 - migration - INFO - Successfully connected to 'sto1'
+2025-12-16 19:26:25,431 - migration - DEBUG - Saved state to .migration_state.json
+2025-12-16 19:26:25,431 - migration - DEBUG - Getting volume 'migration-vol' from 'sto2'
+2025-12-16 19:34:16,951 - migration - INFO - Connecting to cloud 'sto2' (SSL verify: True)
+2025-12-16 19:34:17,398 - migration - INFO - Successfully connected to 'sto2'
+2025-12-16 19:34:17,400 - migration - INFO - Connecting to cloud 'sto1' (SSL verify: True)
+2025-12-16 19:34:17,841 - migration - INFO - Successfully connected to 'sto1'
+2025-12-16 19:34:17,843 - migration - DEBUG - Listing volumes in 'sto2'

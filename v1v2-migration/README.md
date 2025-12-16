@@ -1,33 +1,170 @@
-# utilities
-Utilities for interacting with Safesprings platform
+# OpenStack Migration Utilities
 
-# migrate-instance-snapshot.sh
-Prerequisites: Openstack Python CLI client, qemu-utils, double the space to hold the size of the snapshot you want to migrate in the directory where you run the script
+Utilities for migrating OpenStack resources (volumes, instance snapshots) between Safespring cloud platforms (v1 to v2).
 
-First one needs to take a snapshot in the source platform of the instance that should be migrated.
+## Prerequisites
 
-The script is run with two environment files as arguments:
-migate-instance-snapshot.sh [source-env] [destination-env]
+- Python 3.10+
+- `qemu-img` (from qemu-utils package)
+- OpenStack `clouds.yaml` configuration
+- Sufficient disk space (2x the size of resources being migrated)
 
-The script will list all the available images and snapshots in the source platform. The user then provides the name of the snapshot that should be migrated.
+## Installation
 
-The script downloads the snapshot, runs qemu-img to convert to qcow2 and then uploads it to the destination platform.
+```bash
+# Install dependencies
+pip install -r requirements.txt
 
-# migrate-data-vol.sh
-Prerequisites: Openstack Python CLI client, qemu-utils, double the space to hold the size of the volume you want to migrate in the directory where you run the script
+# For development (includes test dependencies)
+pip install -r requirements-dev.txt
+```
 
-The script is run with two environment files for OpenStack API access as arguments:
-migate-data-vol.sh [source-env] [destination-env]
+## Configuration
 
-The script first lists all available volumes in the source platform. You provide the name of the volume you want to migrate and the script will do the rest. At the end the script will ask you if you want to migrate another volume which could be practical if you have more volumes than one attached to an instance you want to migrate.
+Configure your OpenStack clouds in `~/.config/openstack/clouds.yaml`:
 
+```yaml
+clouds:
+  v1:
+    auth:
+      auth_url: https://v1.example.com:5000/v3
+      username: myuser
+      password: mypassword
+      project_name: myproject
+      user_domain_name: Default
+      project_domain_name: Default
+    region_name: region1
 
-# Migration of instances (different cases)
-If the instance you are migration boots from an image and has no additional volumes you shut down the instance and take an instance snapshot with the button at the end of the row in the instance listing. When the snapshot has finished you boot up the instance again and run the script and points it to the instance snapshot you just made.
+  v2:
+    auth:
+      auth_url: https://v2.example.com:5000/v3
+      username: myuser
+      password: mypassword
+      project_name: myproject
+      user_domain_name: Default
+      project_domain_name: Default
+    region_name: region2
+```
 
-If the instance boots from volume you shut down the instance and perform a volume snapshot in the volume listing view. Once that is done you can boot the instance again and create a volume from the volume snapshot and use that as input when running the migrate-data-vol.sh script.
+## Usage
 
-If the instance boots from image and has one or more additional data volumes you first shut down the instance. You then perform an instance snapshot (in the instance listing view) and then go to Volumes and create volume snapshots for all the volumes attached to the instance. You then create new migration volumes from the volume snapshots. When that is done you use the migrate-instance-snapshot.sh to migrate the instance and the migrate-data-vol.sh script to migrate the attached volumes. 
+### Volume Migration
 
-# unset.sh
-Utility script to unset the OS-env variables. Also part of the actual migrate script so does not need to be run indvidually but added to the repo for completeness.
+```bash
+# Interactive selection
+python migrate.py volume v1 v2
+
+# Migrate specific volume
+python migrate.py volume v1 v2 --volume my-volume
+
+# Migrate multiple volumes (batch mode)
+python migrate.py volume v1 v2 --volume "vol1,vol2,vol3"
+
+# Dry run to preview actions
+python migrate.py volume v1 v2 --dry-run
+
+# Skip confirmation prompts
+python migrate.py volume v1 v2 --volume my-volume --yes
+
+# Resume interrupted migration
+python migrate.py volume v1 v2 --resume
+```
+
+### Snapshot/Image Migration
+
+```bash
+# Interactive selection
+python migrate.py snapshot v1 v2
+
+# Migrate specific image
+python migrate.py snapshot v1 v2 --image my-snapshot
+
+# Migrate multiple images
+python migrate.py snapshot v1 v2 --image "snap1,snap2,snap3"
+
+# Dry run
+python migrate.py snapshot v1 v2 --dry-run
+```
+
+### Common Options
+
+| Option | Description |
+|--------|-------------|
+| `--dry-run` | Preview actions without executing |
+| `--yes`, `-y` | Skip confirmation prompts |
+| `--insecure` | Disable SSL certificate verification |
+| `--log-file PATH` | Log file path (default: migration.log) |
+| `--verbose`, `-v` | Increase verbosity (use -vv for debug) |
+| `--resume` | Resume from last saved state |
+| `--no-cleanup` | Keep temp files on failure |
+| `--work-dir PATH` | Working directory for temp files |
+
+### Status and Cleanup
+
+```bash
+# Show current migration state
+python migrate.py status
+
+# Clear saved migration state
+python migrate.py clean
+```
+
+## Migration Scenarios
+
+### Instance boots from image (no additional volumes)
+1. Shut down the instance
+2. Take an instance snapshot
+3. Boot the instance back up
+4. Run: `python migrate.py snapshot v1 v2 --image my-snapshot`
+
+### Instance boots from volume
+1. Shut down the instance
+2. Create a volume snapshot
+3. Boot the instance back up
+4. Create a volume from the snapshot
+5. Run: `python migrate.py volume v1 v2 --volume my-volume`
+
+### Instance with additional data volumes
+1. Shut down the instance
+2. Take an instance snapshot
+3. Create volume snapshots for all attached volumes
+4. Boot the instance back up
+5. Create volumes from all snapshots
+6. Run: `python migrate.py snapshot v1 v2 --image my-snapshot`
+7. Run: `python migrate.py volume v1 v2 --volume "vol1,vol2,vol3"`
+
+## Features
+
+- **Progress bars**: Visual progress for downloads, uploads, and conversions
+- **Resume capability**: Interrupted migrations can be resumed with `--resume`
+- **Batch mode**: Migrate multiple resources in one command
+- **Dry run**: Preview actions before executing
+- **Graceful interrupts**: Clean up on Ctrl+C
+- **Retry logic**: Automatic retries with exponential backoff
+- **Disk space checks**: Validates sufficient space before starting
+- **Detailed logging**: Configurable verbosity with file logging
+
+## Development
+
+### Running Tests
+
+```bash
+# Run all tests
+pytest
+
+# Run specific test file
+pytest tests/test_volume.py
+
+# Run with coverage
+pytest --cov=migration
+
+# Run specific test
+pytest tests/test_volume.py::TestMigrateSingleVolume::test_dry_run
+```
+
+## Legacy Scripts
+
+The original shell scripts are preserved in the `legacy/` directory for reference:
+- `legacy/migrate-data-vol.sh`
+- `legacy/migrate-instance-snapshot.sh`
+- `legacy/unset.sh`
