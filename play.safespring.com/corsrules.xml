@@ -1,0 +1,9 @@
+<CORSConfiguration>
+<CORSRule>
+  <ID>Allow for *.safespring.com</ID>
+  <AllowedOrigin>https://*.safespring.com</AllowedOrigin>
+  <AllowedMethod>GET</AllowedMethod>
+  <AllowedMethod>HEAD</AllowedMethod>
+  <MaxAgeSeconds>86400</MaxAgeSeconds>
+</CORSRule>
+</CORSConfiguration>
